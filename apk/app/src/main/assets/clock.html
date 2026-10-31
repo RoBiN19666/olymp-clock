@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="color-scheme" content="dark light">
 <meta name="description" content="Часы и таймер для олимпиад. Полностью автономный файл: работает без интернета.">
-<title id="pageTitle">Часы ВсОШ — Екатеринбург</title>
+<title id="pageTitle">Часы для олимпиады — Екатеринбург</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%234cc9f0'/%3E%3Cstop offset='1' stop-color='%234361ee'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='15' fill='%2316213e'/%3E%3Ccircle cx='32' cy='34' r='18' fill='none' stroke='url(%23g)' stroke-width='4.5'/%3E%3Cpath d='M32 22v12l8 5' fill='none' stroke='%23ffffff' stroke-width='4.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='32' cy='34' r='2.8' fill='%234cc9f0'/%3E%3C/svg%3E">
 <meta name="theme-color" content="#16213e">
 <style>
@@ -32,6 +32,7 @@
     --mscale: 1;
     --radius: 14px;
     --shadow: 0 10px 30px rgba(0, 0, 0, .28);
+    --pop: #1b2542;
     --ff: 'Segoe UI', system-ui, -apple-system, 'Roboto', Arial, sans-serif;
 }
 
@@ -48,6 +49,7 @@ html[data-theme="light"] {
     --warn: #c27500;
     --danger: #d92b2b;
     --shadow: 0 10px 26px rgba(30, 60, 110, .14);
+    --pop: #ffffff;
 }
 
 body {
@@ -231,6 +233,56 @@ body.ended .progress-fill { background: var(--danger); }
     padding: 3px;
     gap: 2px;
 }
+
+/* ---------- полоса управления записью (видна только во время проигрывания) ---------- */
+.audio-strip {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: min(100%, 780px);
+    margin: 0 auto;
+    padding: 6px 12px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    animation: stripIn .28s ease;
+}
+.audio-strip[hidden] { display: none; }
+@keyframes stripIn {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: none; }
+}
+.audio-strip .chip { min-width: 34px; padding: 6px 8px; }
+.strip-seek {
+    flex: 1 1 auto;
+    height: 6px;
+    min-width: 60px;
+    border-radius: 3px;
+    background: rgba(128, 140, 160, .25);
+    overflow: hidden;
+}
+.strip-seek i {
+    display: block;
+    height: 100%;
+    width: 0;
+    background: var(--accent);
+    transition: width .18s linear;
+}
+.strip-left {
+    font-size: .82rem;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+.strip-name {
+    font-size: .78rem;
+    color: var(--muted);
+    max-width: 22ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
 .mode {
     background: transparent;
     border: 0;
@@ -301,7 +353,7 @@ input[type="time"], input[type="number"] {
     border: 1px solid var(--line);
     color: var(--text);
     border-radius: 10px;
-    padding: 8px 10px;
+    padding: 8px 34px 8px 10px;
     font: inherit;
     font-size: 1.05rem;
     font-weight: 600;
@@ -310,6 +362,168 @@ input[type="time"], input[type="number"] {
     width: 100%;
     min-width: 5.2em;
 }
+
+/* родной «шпиннер» времени прячем: вместо него своя кнопка и свой выбор */
+input[type="time"]::-webkit-calendar-picker-indicator { display: none; }
+
+.timef { position: relative; display: block; }
+.timef-btn {
+    position: absolute;
+    right: 3px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 0;
+    border-radius: 8px;
+    color: var(--muted);
+    font-size: .95rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: color .15s ease, background-color .15s ease;
+}
+.timef-btn:hover, .timef-btn:focus-visible { color: var(--accent); background: rgba(128, 140, 160, .14); }
+
+/* ---------- свой выбор времени ---------- */
+.tpick {
+    position: fixed;
+    top: 0; right: 0; bottom: 0; left: 0;
+    z-index: 210;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: rgba(6, 10, 20, .66);
+}
+.tpick[hidden] { display: none; }
+.tpick-card {
+    width: min(92vw, 430px);
+    background: var(--pop);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+    padding: 16px;
+}
+.tpick-title {
+    text-align: center;
+    font-size: .95rem;
+    font-weight: 600;
+    margin-bottom: 12px;
+}
+.tpick-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.tpick-head {
+    text-align: center;
+    font-size: .7rem;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+}
+.tpick-col {
+    position: relative;
+    max-height: 230px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+.tpick-opt {
+    background: transparent;
+    border: 0;
+    color: var(--text);
+    font: inherit;
+    font-size: 1.15rem;
+    font-variant-numeric: tabular-nums;
+    padding: 9px 4px;
+    border-radius: 10px;
+    cursor: pointer;
+}
+.tpick-opt:hover, .tpick-opt:focus-visible { background: var(--card2); }
+.tpick-opt[aria-selected="true"] {
+    background: rgba(76, 201, 240, .16);
+    color: var(--accent);
+    font-weight: 700;
+}
+.tpick-foot { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; }
+
+/* ---------- выбор часового пояса: свой список, чтобы тёмная тема не ломалась ---------- */
+.tzpick { position: relative; max-width: 22rem; }
+
+.tz-btn {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    width: 100%;
+    background: var(--card2);
+    border: 1px solid var(--line);
+    color: var(--text);
+    border-radius: 10px;
+    padding: 8px 10px;
+    font: inherit;
+    font-size: .95rem;
+    text-align: left;
+    cursor: pointer;
+    transition: border-color .18s ease;
+}
+.tz-btn:hover { border-color: rgba(76, 201, 240, .45); }
+.tz-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.tz-caret {
+    flex: none;
+    width: 0; height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 6px solid var(--muted);
+    transition: transform .2s ease;
+}
+.tz-btn[aria-expanded="true"] .tz-caret { transform: rotate(180deg); }
+
+/* раскрывающийся список поясов — в потоке, как обычный блок:
+   никаких всплывающих слоёв, обрезки панелью и z-index */
+.tz-menu {
+    margin-top: 6px;
+    width: 340px;
+    max-width: 88vw;
+    max-height: 360px;
+    overflow-y: auto;
+    background: var(--pop);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    padding: 6px;
+}
+.tz-menu[hidden] { display: none; }
+
+.tz-group {
+    font-size: .7rem;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 8px 10px 4px;
+}
+
+.tz-opt {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: transparent;
+    border: 0;
+    color: var(--text);
+    font: inherit;
+    font-size: .92rem;
+    padding: 8px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.tz-opt:hover, .tz-opt:focus-visible { background: var(--card2); }
+.tz-opt[aria-selected="true"] { background: rgba(76, 201, 240, .14); color: var(--accent); }
 html[data-theme="light"] input[type="time"],
 html[data-theme="light"] input[type="number"] { color-scheme: light; }
 input[type="number"] { -moz-appearance: textfield; }
@@ -592,6 +806,31 @@ body:not(.panel-collapsed) .chevron { transform: rotate(180deg); }
     top: -20px;
     animation: fall linear forwards;
 }
+
+/* подсказка при перетаскивании аудиофайла на страницу */
+.drop-hint {
+    position: fixed;
+    top: 0; right: 0; bottom: 0; left: 0;
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    background: rgba(10, 14, 26, .72);
+    border: 3px dashed rgba(76, 201, 240, .75);
+    color: var(--text);
+    font-size: clamp(1rem, 2.4vmin, 1.5rem);
+    font-weight: 600;
+    text-align: center;
+    padding: 20px;
+}
+.drop-hint[hidden] { display: none; }
+.drop-hint span {
+    padding: 16px 24px;
+    border-radius: 14px;
+    background: rgba(22, 33, 62, .9);
+    border: 1px solid var(--line);
+}
 .toast {
     position: fixed;
     left: 50%;
@@ -766,6 +1005,15 @@ body:not(.panel-collapsed) .chevron { transform: rotate(180deg); }
         <button class="mode" id="modeTimer" role="tab" aria-selected="false" data-mode="timer">⏱ Таймер</button>
     </div>
 
+    <!-- полоса управления записью: появляется только пока она играет -->
+    <div class="audio-strip" id="audioStrip" hidden>
+        <button type="button" class="chip" id="stripPlay" title="Пауза / продолжить" aria-label="Пауза или продолжить">⏸</button>
+        <button type="button" class="chip" id="stripStop" title="Стоп" aria-label="Стоп">⏹</button>
+        <div class="strip-seek"><i id="stripFill"></i></div>
+        <span class="strip-left" id="stripLeft">осталось 0:00</span>
+        <span class="strip-name" id="stripName"></span>
+    </div>
+
     <section class="panel">
         <div class="panel-head" id="panelHead" role="button" tabindex="0" aria-expanded="true">
             <div class="panel-title">⚙️ Настройки</div>
@@ -781,11 +1029,17 @@ body:not(.panel-collapsed) .chevron { transform: rotate(180deg); }
                 <div class="row">
                     <label class="field">
                         <span class="flabel">Начало</span>
-                        <input type="time" id="startTime" step="60" value="11:00">
+                        <span class="timef">
+                            <input type="time" id="startTime" step="60" value="11:00">
+                            <button type="button" class="timef-btn" data-pick="start" title="Выбрать время" aria-label="Выбрать время начала">🕘</button>
+                        </span>
                     </label>
                     <label class="field">
                         <span class="flabel">Окончание</span>
-                        <input type="time" id="endTime" step="60" value="14:00">
+                        <span class="timef">
+                            <input type="time" id="endTime" step="60" value="14:00">
+                            <button type="button" class="timef-btn" data-pick="end" title="Выбрать время" aria-label="Выбрать время окончания">🕘</button>
+                        </span>
                     </label>
                     <div class="field grow">
                         <span class="flabel">Быстрый выбор</span>
@@ -887,7 +1141,7 @@ body:not(.panel-collapsed) .chevron { transform: rotate(180deg); }
                             <button type="button" class="chip" id="audioBack" disabled title="Назад на 10 секунд">⏪ 10</button>
                             <button type="button" class="chip" id="audioFwd" disabled title="Вперёд на 10 секунд">10 ⏩</button>
                         </div>
-                        <div class="hint" id="audioHint">Не выбран · файл остаётся на компьютере</div>
+                        <div class="hint" id="audioHint">Не выбран · перетащите файл сюда или нажмите кнопку</div>
                     </div>
                 </div>
                 <div class="audio-player" id="audioPlayer" hidden>
@@ -908,6 +1162,22 @@ body:not(.panel-collapsed) .chevron { transform: rotate(180deg); }
             <!-- ВРЕМЯ -->
             <div class="panel-section">
                 <div class="section-title">Время и синхронизация</div>
+                <div class="row">
+                    <div class="field">
+                        <span class="flabel">Часовой пояс</span>
+                        <div class="tzpick">
+                            <button type="button" class="tz-btn" id="tzBtn" aria-haspopup="listbox" aria-expanded="false">
+                                <span id="tzBtnText">Екатеринбург (UTC+5)</span>
+                                <b class="tz-caret"></b>
+                            </button>
+                            <div class="tz-menu" id="tzMenu" role="listbox" aria-label="Часовой пояс" hidden></div>
+                        </div>
+                    </div>
+                    <div class="field grow">
+                        <span class="flabel">Смещение</span>
+                        <div class="hint" id="tzInfo">UTC+5 · Asia/Yekaterinburg</div>
+                    </div>
+                </div>
                 <div class="row">
                     <div class="field grow">
                         <span class="flabel">Источник времени</span>
@@ -1016,6 +1286,255 @@ body:not(.panel-collapsed) .chevron { transform: rotate(180deg); }
        ========================================================= */
     var ZONE = { tz: 'Asia/Yekaterinburg', city: 'Екатеринбург' };
 
+    /* Список поясов: автопоределение + Россия + соседи. Значения UTC в подписи —
+       справочные, фактическое смещение считается через Intl (см. tzInfo). */
+    var ZONES = [
+        { id: 'auto', name: 'Автоопределение (по компьютеру)' },
+        { group: 'Россия' },
+        { id: 'Europe/Kaliningrad', city: 'Калининград', utc: 'UTC+2' },
+        { id: 'Europe/Moscow', city: 'Москва', utc: 'UTC+3' },
+        { id: 'Europe/Samara', city: 'Самара', utc: 'UTC+4' },
+        { id: 'Asia/Yekaterinburg', city: 'Екатеринбург', utc: 'UTC+5' },
+        { id: 'Asia/Omsk', city: 'Омск', utc: 'UTC+6' },
+        { id: 'Asia/Novosibirsk', city: 'Новосибирск', utc: 'UTC+7' },
+        { id: 'Asia/Krasnoyarsk', city: 'Красноярск', utc: 'UTC+7' },
+        { id: 'Asia/Irkutsk', city: 'Иркутск', utc: 'UTC+8' },
+        { id: 'Asia/Yakutsk', city: 'Якутск', utc: 'UTC+9' },
+        { id: 'Asia/Vladivostok', city: 'Владивосток', utc: 'UTC+10' },
+        { id: 'Asia/Magadan', city: 'Магадан', utc: 'UTC+11' },
+        { id: 'Asia/Kamchatka', city: 'Камчатка', utc: 'UTC+12' },
+        { group: 'Другие' },
+        { id: 'Europe/Minsk', city: 'Минск', utc: 'UTC+3' },
+        { id: 'Europe/Kiev', city: 'Киев', utc: 'UTC+2' },
+        { id: 'Europe/Tbilisi', city: 'Тбилиси', utc: 'UTC+4' },
+        { id: 'Asia/Almaty', city: 'Алматы', utc: 'UTC+5' },
+        { id: 'Asia/Tashkent', city: 'Ташкент', utc: 'UTC+5' },
+        { id: 'UTC', city: 'UTC', utc: 'UTC+0' }
+    ];
+
+    function tzAuto() {
+        try {
+            return Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+        } catch (e) { return ''; }
+    }
+
+    function tzEntry(id) {
+        for (var i = 0; i < ZONES.length; i++) {
+            if (ZONES[i].id === id) return ZONES[i];
+        }
+        return null;
+    }
+
+    /* Что реально применяем: выбранный пояс или пояс компьютера */
+    function resolveTz() {
+        var pref = settings.tz || 'Asia/Yekaterinburg';
+        if (pref === 'auto') return tzAuto() || 'Asia/Yekaterinburg';
+        return pref;
+    }
+
+    /* Подпись города для выбранного пояса (для заголовка и «источника времени») */
+    function zoneCity() {
+        var e = tzEntry(resolveTz());
+        if (e && e.city) return e.city;
+        return ZONE.city || 'Екатеринбург';
+    }
+
+    function applyTz(persist) {
+        var id = resolveTz();
+        ZONE.tz = id;
+        ZONE.city = zoneCity();
+        var info = $('tzInfo');
+        if (info) {
+            var ok = TZ.tzSupported(id);
+            var off = ok ? TZ.offsetLabel(Time.now()) : 'нет поддержки поясов';
+            info.textContent = off + ' · ' + id + (settings.tz === 'auto' ? ' (определено)' : '');
+        }
+        updateTzButton();
+        if (persist) saveSettings();
+    }
+
+    /* Подпись пункта списка. short — для кнопки, где мало места */
+    function tzLabel(id, short) {
+        var z = tzEntry(id);
+        if (!z) return id;
+        if (id === 'auto') {
+            var det = tzAuto();
+            if (!det) return 'Автоопределение';
+            return short ? ('Авто — ' + det) : ('По компьютеру — ' + det);
+        }
+        return z.city + ' (' + z.utc + ')';
+    }
+
+    /* Свой выпадающий список вместо <select>: нативный попап в тёмной теме
+       рисуется белым с белым текстом, и список выглядит пустым. */
+    function buildTzMenu() {
+        var menu = $('tzMenu');
+        if (!menu) return;
+        while (menu.firstChild) menu.removeChild(menu.firstChild);
+
+        var pref = settings.tz || 'Asia/Yekaterinburg';
+        var i, z, node;
+
+        for (i = 0; i < ZONES.length; i++) {
+            z = ZONES[i];
+            if (z.group) {
+                node = document.createElement('div');
+                node.className = 'tz-group';
+                node.textContent = z.group;
+                menu.appendChild(node);
+                continue;
+            }
+            node = document.createElement('button');
+            node.type = 'button';
+            node.className = 'tz-opt';
+            node.setAttribute('data-tz', z.id);
+            node.setAttribute('role', 'option');
+            node.textContent = tzLabel(z.id);
+            if (z.id === pref) node.setAttribute('aria-selected', 'true');
+            menu.appendChild(node);
+        }
+
+        /* пояс из ссылки/настроек может быть вне списка — добавим строкой */
+        if (pref !== 'auto' && !tzEntry(pref)) {
+            node = document.createElement('button');
+            node.type = 'button';
+            node.className = 'tz-opt';
+            node.setAttribute('data-tz', pref);
+            node.setAttribute('role', 'option');
+            node.setAttribute('aria-selected', 'true');
+            node.textContent = pref;
+            menu.appendChild(node);
+        }
+    }
+
+    function updateTzButton() {
+        var txt = $('tzBtnText');
+        var pref = settings.tz || 'Asia/Yekaterinburg';
+        if (txt) txt.textContent = tzLabel(pref, true);
+
+        var menu = $('tzMenu');
+        if (!menu) return;
+        var opts = menu.querySelectorAll('.tz-opt');
+        for (var i = 0; i < opts.length; i++) {
+            var on = opts[i].getAttribute('data-tz') === pref;
+            opts[i].setAttribute('aria-selected', on ? 'true' : 'false');
+        }
+    }
+
+    function openTzMenu(open) {
+        var menu = $('tzMenu'), btn = $('tzBtn');
+        if (!menu || !btn) return;
+        menu.hidden = !open;
+        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        if (!open) return;
+
+        var cur = menu.querySelector('.tz-opt[aria-selected="true"]') || menu.querySelector('.tz-opt');
+        if (cur) {
+            try { cur.focus({ preventScroll: true }); } catch (e) { cur.focus(); }
+            if (cur.scrollIntoView) cur.scrollIntoView({ block: 'nearest' });
+        }
+    }
+
+    function onTzChange(id) {
+        settings.tz = id;
+        saveSettings();
+        applyTz(true);
+        /* если пояс выбирают явно — подпись города под заголовком подтягиваем за ним */
+        var e = tzEntry(resolveTz());
+        if (e && e.city) {
+            settings.location = 'г. ' + e.city;
+            saveSettings();
+            var loc = $('eventLocation');
+            if (loc) loc.textContent = settings.location;
+            titleBase = settings.title + ' — ' + placeName();
+            var pt = $('pageTitle');
+            if (pt) pt.textContent = titleBase;
+        }
+        render();
+        toast('Часовой пояс: ' + (e && e.city ? e.city + ' (' + e.utc + ')' : resolveTz()));
+    }
+
+    /* =========================================================
+       Свой выбор времени вместо нативного пикера
+       ========================================================= */
+    var TimePick = {
+        field: null,
+        h: 11,
+        m: 0,
+        built: false,
+
+        makeOpt: function (val, kind) {
+            var self = this;
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'tpick-opt';
+            b.setAttribute('role', 'option');
+            b.setAttribute('data-v', String(val));
+            b.textContent = pad2(val);
+            b.addEventListener('click', function () {
+                if (kind === 'h') self.h = val; else self.m = val;
+                self.mark();
+            });
+            return b;
+        },
+
+        build: function () {
+            if (this.built) return;
+            var hc = $('tPickH'), mc = $('tPickM');
+            var i;
+            for (i = 0; i < 24; i++) hc.appendChild(this.makeOpt(i, 'h'));
+            for (i = 0; i < 60; i++) mc.appendChild(this.makeOpt(i, 'm'));
+            this.built = true;
+        },
+
+        center: function (col, btn) {
+            if (!btn) return;
+            col.scrollTop = Math.max(0, btn.offsetTop - col.clientHeight / 2 + btn.offsetHeight / 2);
+        },
+
+        mark: function () {
+            var hc = $('tPickH'), mc = $('tPickM');
+            var i, b;
+            for (i = 0; i < hc.children.length; i++) {
+                b = hc.children[i];
+                b.setAttribute('aria-selected', b.getAttribute('data-v') === String(this.h) ? 'true' : 'false');
+            }
+            for (i = 0; i < mc.children.length; i++) {
+                b = mc.children[i];
+                b.setAttribute('aria-selected', b.getAttribute('data-v') === String(this.m) ? 'true' : 'false');
+            }
+            this.center(hc, hc.querySelector('[aria-selected="true"]'));
+            this.center(mc, mc.querySelector('[aria-selected="true"]'));
+        },
+
+        open: function (field) {
+            this.build();
+            this.field = field;
+            var el = $(field === 'start' ? 'startTime' : 'endTime');
+            var sec = parseHM(el.value);
+            if (sec === null) sec = field === 'start' ? 11 * 3600 : 14 * 3600;
+            this.h = Math.floor(sec / 3600) % 24;
+            this.m = Math.floor((sec % 3600) / 60);
+            $('tPickTitle').textContent = field === 'start' ? 'Начало олимпиады' : 'Окончание олимпиады';
+            $('tPick').hidden = false;
+            this.mark();
+        },
+
+        close: function () {
+            $('tPick').hidden = true;
+            this.field = null;
+        },
+
+        apply: function () {
+            if (!this.field) { this.close(); return; }
+            var el = $(this.field === 'start' ? 'startTime' : 'endTime');
+            el.value = fmtHMfromSec(this.h * 3600 + this.m * 60);
+            el.dispatchEvent(new Event('change', { bubbles: true }));
+            this.close();
+        }
+    };
+
+
     var DEFAULTS = {
         title: 'Всероссийская олимпиада школьников',
         location: 'г. Екатеринбург',
@@ -1033,7 +1552,8 @@ body:not(.panel-collapsed) .chevron { transform: rotate(180deg); }
         manualOffset: 0,
         panelOpen: true,
         audioStart: false,
-        audioName: ''
+        audioName: '',
+        tz: 'Asia/Yekaterinburg'
     };
 
     var settings = {};
@@ -1500,6 +2020,11 @@ body:not(.panel-collapsed) .chevron { transform: rotate(180deg); }
             $('audioBack').addEventListener('click', function () { self.skip(-10); });
             $('audioFwd').addEventListener('click', function () { self.skip(10); });
 
+            /* компактная полоса над настройками — для работы во время тура */
+            var stripPlay = $('stripPlay'), stripStop = $('stripStop');
+            if (stripPlay) stripPlay.addEventListener('click', function () { self.toggle(); });
+            if (stripStop) stripStop.addEventListener('click', function () { self.stop(); });
+
             /* перемотка: клик по полосе и протаскивание ползунка */
             var seek = $('audioSeek');
             var dragging = false;
@@ -1539,6 +2064,7 @@ body:not(.panel-collapsed) .chevron { transform: rotate(180deg); }
                 settings.audioStart = box.checked;
                 saveSettings();
                 if (box.checked && !self.ready) toast('Сначала выберите аудиофайл');
+                self.paint();   /* полоса-пульт зависит от этой галочки */
             });
 
             this.restore();
@@ -1596,7 +2122,7 @@ body:not(.panel-collapsed) .chevron { transform: rotate(180deg); }
                 if (!this.ready) {
                     hint.textContent = settings.audioName
                         ? 'Выберите заново: ' + settings.audioName
-                        : 'Не выбран · файл остаётся на компьютере';
+                        : 'Не выбран · перетащите файл сюда или нажмите кнопку';
                 } else {
                     hint.textContent = this.name + (this.dbOk ? '' : ' · после перезагрузки выберите заново');
                 }
@@ -1607,7 +2133,7 @@ body:not(.panel-collapsed) .chevron { transform: rotate(180deg); }
         paintProgress: function () {
             var player = $('audioPlayer');
             if (!player) return;
-            if (!this.ready) { player.hidden = true; return; }
+            if (!this.ready) { player.hidden = true; this.paintStrip(); return; }
             player.hidden = false;
 
             var d = this.el.duration;
@@ -1622,6 +2148,33 @@ body:not(.panel-collapsed) .chevron { transform: rotate(180deg); }
             $('audioTotal').textContent = ok ? fmtMedia(d) : '—:—';
             $('audioLeft').textContent = ok ? 'осталось ' + fmtMedia(Math.max(0, d - cur)) : '';
             $('audioSeek').setAttribute('aria-valuenow', String(Math.round(ratio * 100)));
+            this.paintStrip();
+        },
+
+        /* Полоса над настройками: пульт на время тура.
+           Видна, пока запись идёт или стоит на паузе, а при выключенном автозапуске —
+           сразу после выбора файла, потому что запускать придётся вручную.
+           Пропадает, когда запись доиграла: место на экране не занимает. */
+        paintStrip: function () {
+            var strip = $('audioStrip');
+            if (!strip) return;
+
+            var playing = this.ready && !this.el.paused && !this.el.ended;
+            var cur = this.el.currentTime || 0;
+            var ended = this.el.ended;
+            var manual = this.ready && !settings.audioStart;
+
+            var active = this.ready && !ended && (playing || cur > 0 || manual);
+            strip.hidden = !active;
+            if (!active) return;
+
+            var d = this.el.duration;
+            var ok = isFinite(d) && d > 0;
+            $('stripPlay').textContent = playing ? '⏸' : '▶';
+            $('stripFill').style.width = ok ? ((clamp(cur / d, 0, 1)) * 100).toFixed(1) + '%' : '0%';
+            $('stripLeft').textContent = ok ? 'осталось ' + fmtMedia(Math.max(0, d - cur)) : 'готово к запуску';
+            var nm = $('stripName');
+            if (nm && nm.textContent !== this.name) nm.textContent = this.name;
         },
 
         seekTo: function (ratio) {
@@ -2298,8 +2851,16 @@ body:not(.panel-collapsed) .chevron { transform: rotate(180deg); }
     function applyTexts() {
         $('eventTitle').textContent = settings.title;
         $('eventLocation').textContent = settings.location;
-        titleBase = settings.title + ' — ' + ZONE.city;
+        titleBase = settings.title + ' — ' + placeName();
         $('pageTitle').textContent = titleBase;
+    }
+
+    /* Название места для заголовка вкладки: берём то, что написано в подписи
+       города, без приставки «г.» — так правка города сразу видна во вкладке. */
+    function placeName() {
+        var s = String(settings.location || '').trim();
+        s = s.replace(/^г\.?\s*/i, '');
+        return s || ZONE.city || 'Екатеринбург';
     }
 
     function makeEditable(el, maxLen, onSave) {
@@ -2486,6 +3047,12 @@ body:not(.panel-collapsed) .chevron { transform: rotate(180deg); }
             var sc = parseFloat(params.scale);
             if (sc >= 0.6 && sc <= 2) settings.scale = sc;
         }
+        if (params.tz) {
+            /* ?tz=Europe/Moscow или ?tz=auto */
+            settings.tz = params.tz;
+            var ze = tzEntry(params.tz === 'auto' ? tzAuto() : params.tz);
+            if (ze && ze.city) settings.location = 'г. ' + ze.city;
+        }
         saveSettings();
         if (params.auto === '1') State.autoStart = true;
     }
@@ -2503,6 +3070,53 @@ body:not(.panel-collapsed) .chevron { transform: rotate(180deg); }
         restoreTimer();
         Time.load();
         Time.manual = settings.manualOffset || 0;
+
+        /* часовой пояс: сначала выбираем и применяем, потом всё остальное,
+           иначе заголовок и подпись города возьмут старый пояс */
+        buildTzMenu();
+        applyTz(false);
+
+        var tzBtn = $('tzBtn'), tzMenu = $('tzMenu');
+        if (tzBtn && tzMenu) {
+            tzBtn.addEventListener('click', function () { openTzMenu(tzMenu.hidden); });
+            tzMenu.addEventListener('click', function (e) {
+                var btn = e.target && e.target.closest ? e.target.closest('.tz-opt') : null;
+                if (!btn) return;
+                openTzMenu(false);
+                onTzChange(btn.getAttribute('data-tz'));
+            });
+            document.addEventListener('click', function (e) {
+                if (tzMenu.hidden) return;
+                if (tzBtn.contains(e.target) || tzMenu.contains(e.target)) return;
+                openTzMenu(false);
+            });
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape' && !tzMenu.hidden) {
+                    openTzMenu(false);
+                    tzBtn.focus();
+                }
+            });
+        }
+
+        /* --- свой выбор времени --- */
+        (function timePickerInit() {
+            var btns = document.querySelectorAll('.timef-btn');
+            for (var i = 0; i < btns.length; i++) {
+                btns[i].addEventListener('click', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    TimePick.open(this.getAttribute('data-pick'));
+                });
+            }
+            $('tPickOk').addEventListener('click', function () { TimePick.apply(); });
+            $('tPickCancel').addEventListener('click', function () { TimePick.close(); });
+            $('tPick').addEventListener('click', function (e) {
+                if (e.target === this) TimePick.close();   /* клик по фону */
+            });
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape' && !$('tPick').hidden) TimePick.close();
+            });
+        })();
 
         applyTexts();
         applyTheme();
@@ -2529,17 +3143,81 @@ body:not(.panel-collapsed) .chevron { transform: rotate(180deg); }
         AudioCue.init();
         render();
 
+        /* --- перетаскивание аудиофайла прямо на страницу --- */
+        (function dragDropAudio() {
+            var hint = $('dropHint');
+            var active = false;
+
+            function showDrop(on) {
+                if (!hint || active === on) return;
+                active = on;
+                hint.hidden = !on;
+            }
+
+            function hasFiles(e) {
+                var dt = e.dataTransfer;
+                if (!dt || !dt.types) return false;
+                for (var i = 0; i < dt.types.length; i++) {
+                    if (dt.types[i] === 'Files') return true;
+                }
+                return false;
+            }
+
+            function isAudio(f) {
+                return /^audio\//i.test(f.type || '') ||
+                       /\.(mp3|wav|ogg|m4a|aac|flac|opus|weba|webm)$/i.test(f.name || '');
+            }
+
+            window.addEventListener('dragenter', function (e) {
+                if (!hasFiles(e)) return;
+                e.preventDefault();
+                showDrop(true);
+            });
+
+            window.addEventListener('dragover', function (e) {
+                if (!hasFiles(e)) return;
+                e.preventDefault();                     /* иначе браузер откроет файл вместо страницы */
+                try { e.dataTransfer.dropEffect = 'copy'; } catch (err) {}
+                showDrop(true);
+            });
+
+            window.addEventListener('dragleave', function (e) {
+                if (e.relatedTarget === null || e.clientX <= 0 || e.clientY <= 0 ||
+                    e.clientX >= window.innerWidth || e.clientY >= window.innerHeight) {
+                    showDrop(false);
+                }
+            });
+
+            window.addEventListener('drop', function (e) {
+                e.preventDefault();
+                showDrop(false);
+                var files = e.dataTransfer && e.dataTransfer.files;
+                if (!files || !files.length) return;
+                var f = files[0];
+                if (!isAudio(f)) {
+                    toast('Это не аудиофайл');
+                    return;
+                }
+                AudioCue.load(f);
+                toast('Запись загружена');
+            });
+        })();
+
         /* --- заголовок и место --- */
         makeEditable($('eventTitle'), 60, function (v) {
             settings.title = v;
             saveSettings();
-            titleBase = v + ' — ' + ZONE.city;
+            titleBase = v + ' — ' + placeName();
             $('pageTitle').textContent = titleBase;
             toast('Название сохранено');
         });
         makeEditable($('eventLocation'), 40, function (v) {
             settings.location = v;
             saveSettings();
+            /* заголовок вкладки тоже должен следовать за городом */
+            titleBase = settings.title + ' — ' + placeName();
+            $('pageTitle').textContent = titleBase;
+            render();
             toast('Место сохранено');
         });
 
@@ -2866,5 +3544,29 @@ body:not(.panel-collapsed) .chevron { transform: rotate(180deg); }
     }
 })();
 </script>
+
+<div class="drop-hint" id="dropHint" hidden>
+    <span>Отпустите файл — запись загрузится в часы</span>
+</div>
+
+<div class="tpick" id="tPick" hidden>
+    <div class="tpick-card" role="dialog" aria-modal="true" aria-label="Выбор времени">
+        <div class="tpick-title" id="tPickTitle">Время</div>
+        <div class="tpick-cols">
+            <div>
+                <div class="tpick-head">Часы</div>
+                <div class="tpick-col" id="tPickH"></div>
+            </div>
+            <div>
+                <div class="tpick-head">Минуты</div>
+                <div class="tpick-col" id="tPickM"></div>
+            </div>
+        </div>
+        <div class="tpick-foot">
+            <button type="button" class="chip" id="tPickCancel">Отмена</button>
+            <button type="button" class="chip primary" id="tPickOk">Готово</button>
+        </div>
+    </div>
+</div>
 </body>
 </html>
