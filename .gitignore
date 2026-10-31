@@ -21,6 +21,13 @@ apk/.idea/
 *.keystore
 *.jks
 
+# результаты локальной сборки APK и SDK
+.android-sdk-dl/
+apk/build_manual/
+apk/dist/
+# Android SDK для локальной сборки
+.android-sdk/
+
 # система и редакторы
 Thumbs.db
 desktop.ini

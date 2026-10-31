@@ -77,7 +77,7 @@ body {
 }
 
 /* ---------- заголовок ---------- */
-.header { text-align: center; }
+.header { text-align: center; position: relative; z-index: 2; }
 
 .title {
     margin: 0;
@@ -128,7 +128,9 @@ body {
 }
 
 /* ---------- часы ---------- */
-.clockwrap { text-align: center; line-height: 1; }
+/* line-height 1.15: иначе при крупном шрифте глифы выходят за блок
+   и перекрывают строку с городом (по ней нельзя было попасть мышью) */
+.clockwrap { text-align: center; line-height: 1.15; position: relative; z-index: 1; }
 
 .clock {
     display: inline-flex;
@@ -190,7 +192,7 @@ body.warn .clock .seg.s .digit { color: var(--warn); text-shadow: 0 0 14px rgba(
     text-overflow: ellipsis;
 }
 .card-value {
-    font-size: 4.6vmin;
+    font-size: 5.2vmin;
     font-weight: 600;
     font-variant-numeric: tabular-nums;
     color: var(--accent);
@@ -198,7 +200,7 @@ body.warn .clock .seg.s .digit { color: var(--warn); text-shadow: 0 0 14px rgba(
     line-height: 1.15;
 }
 .card.primary { border-color: rgba(76, 201, 240, .45); }
-.card.primary .card-value { font-size: 5.2vmin; }
+.card.primary .card-value { font-size: 5.9vmin; }
 body.warn .card.primary { border-color: rgba(255, 177, 66, .6); }
 body.warn .card.primary .card-value { color: var(--warn); }
 body.ended .card.primary { border-color: rgba(255, 107, 107, .6); }
@@ -589,14 +591,18 @@ body:not(.panel-collapsed) .chevron { transform: rotate(180deg); }
     }
     .title { font-size: calc(clamp(1.15rem, 4vmin, 2.5rem) * var(--scale)); }
     .subline { font-size: calc(clamp(.82rem, 2.2vmin, 1.25rem) * var(--scale)); }
-    .clock { font-size: calc(clamp(3.2rem, 19.5vmin, 11rem) * var(--scale)); }
-    body.panel-collapsed .clock { font-size: calc(clamp(3.2rem, 23vmin, 12.5rem) * var(--scale)); }
+    /* размер часов ограничен шириной экрана: при масштабе 150–200 %
+       иначе они вылезали за края */
+    .clock { font-size: min(calc(clamp(3.2rem, 19.5vmin, 11rem) * var(--scale)), 20.4vw, 260px); }
+    body.panel-collapsed .clock { font-size: min(calc(clamp(3.2rem, 23vmin, 12.5rem) * var(--scale)), 20.4vw, 260px); }
     .cards { gap: clamp(6px, 1vw, 14px); }
     .card { padding: clamp(6px, 1.1vh, 14px) clamp(10px, 1.6vw, 22px); }
     .card-label { font-size: calc(clamp(.66rem, 1.8vmin, .95rem) * var(--scale)); }
-    .card-value { font-size: calc(clamp(1.2rem, 4.6vmin, 2.6rem) * var(--scale)); }
-    .card.primary .card-value { font-size: calc(clamp(1.35rem, 5.2vmin, 3.1rem) * var(--scale)); }
-    .card.primary.over .card-value { font-size: calc(clamp(1rem, 4.6vmin, 2.6rem) * var(--scale)); }
+    /* значения карточек крупнее на больших экранах, но с потолком по ширине,
+       чтобы при масштабе 200 % цифры не вылезали из карточки */
+    .card-value { font-size: min(calc(clamp(1.25rem, 5.2vmin, 3rem) * var(--scale)), 4.4vw, 84px); }
+    .card.primary .card-value { font-size: min(calc(clamp(1.4rem, 5.9vmin, 3.5rem) * var(--scale)), 4.9vw, 92px); }
+    .card.primary.over .card-value { font-size: min(calc(clamp(1rem, 4.6vmin, 2.6rem) * var(--scale)), 4.4vw, 84px); }
     .mode { font-size: clamp(.84rem, 2.1vmin, 1.1rem); }
     .panel-title { font-size: clamp(.82rem, 1.9vmin, .98rem); }
 }

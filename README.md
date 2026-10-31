@@ -5,7 +5,7 @@
 
 [**Открыть в браузере**](https://robin19666.github.io/olymp-clock/) ·
 [**Скачать файл**](https://github.com/RoBiN19666/olymp-clock/raw/main/index.html) ·
-[**Android-версия**](apk/README.md)
+[**Скачать APK**](https://github.com/RoBiN19666/olymp-clock/releases/latest)
 
 ![Расписание олимпиады](screenshots/1_schedule_1080.png)
 
@@ -110,8 +110,14 @@ msedge.exe --kiosk --app="file:///D:/Олимпиада/index.html?mode=schedule
 ## Android-доски
 
 На части интерактивных панелей нет приложения, связанного с `.html`, — файл просто нечем
-открыть. Для них в папке [`apk/`](apk/README.md) лежит обёртка: та же страница внутри APK,
-полный экран, экран не гаснет. Сборка — в Android Studio, две минуты.
+открыть. Для них есть **готовый APK** в [релизах](https://github.com/RoBiN19666/olymp-clock/releases/latest):
+та же страница внутри пакета, полный экран, экран не гаснет, кнопка «Назад» закрывает.
+
+Скачать APK на доску → открыть файл → при запросе разрешить установку из неизвестных
+источников. Размер — около 130 КБ, интернет не нужен.
+
+Исходники обёртки — в папке [`apk/`](apk/README.md): обычный проект Android Studio, если
+захочется собрать самому или поправить.
 
 ## Файлы
 
