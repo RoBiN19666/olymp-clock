@@ -34,6 +34,10 @@
 |---|---|
 | ![Свёрнутые настройки](screenshots/2_collapsed.png) | ![Время вышло](screenshots/4_end.png) |
 
+| | | |
+|---|---|---|
+| ![Таймер](screenshots/3_timer.png) | ![Быстрый выбор](screenshots/7_schedule_presets.png) | ![Телефон](screenshots/6_mobile.png) |
+
 ## Возможности
 
 - **Полный экран и масштаб** 60–200 %: на проекторе видно с любого ряда.
