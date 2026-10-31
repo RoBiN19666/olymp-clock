@@ -239,6 +239,8 @@ body.ended .progress-fill { background: var(--danger); }
     display: flex;
     align-items: center;
     gap: 10px;
+    width: 100%;
+    max-width: 780px;
     width: min(100%, 780px);
     margin: 0 auto;
     padding: 6px 12px;
@@ -424,6 +426,8 @@ input[type="time"]::-webkit-calendar-picker-indicator { display: none; }
 }
 .tpick[hidden] { display: none; }
 .tpick-card {
+    width: 430px;
+    max-width: 92vw;
     width: min(92vw, 430px);
     background: var(--pop);
     border: 1px solid var(--line);
@@ -842,6 +846,7 @@ body:not(.panel-collapsed) .chevron { transform: rotate(180deg); }
     background: rgba(10, 14, 26, .72);
     border: 3px dashed rgba(76, 201, 240, .75);
     color: var(--text);
+    font-size: 1.2rem;
     font-size: clamp(1rem, 2.4vmin, 1.5rem);
     font-weight: 600;
     text-align: center;
