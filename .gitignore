@@ -28,6 +28,7 @@ apk/.idea/
 # результаты локальной сборки APK и SDK
 .android-sdk-dl/
 apk/build_manual/
+apk/build-apk.py
 apk/dist/
 # Android SDK для локальной сборки
 .android-sdk/
