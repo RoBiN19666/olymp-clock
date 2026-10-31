@@ -320,20 +320,56 @@ input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 .hint { font-size: .82rem; color: var(--muted); line-height: 1.35; }
 .hint.err { color: var(--danger); }
 
-.audio-bar {
+.audio-player { margin-top: 12px; }
+
+.aseek {
+    position: relative;
+    height: 20px;
+    cursor: pointer;
+    touch-action: none;
+    user-select: none;
+    outline: none;
+}
+.aseek::before {
+    content: "";
+    position: absolute;
+    left: 0; right: 0; top: 8px;
     height: 4px;
-    margin-top: 10px;
     border-radius: 2px;
-    background: rgba(128, 140, 160, .25);
-    overflow: hidden;
+    background: rgba(128, 140, 160, .28);
 }
-.audio-bar i {
-    display: block;
-    height: 100%;
+.aseek i {
+    position: absolute;
+    left: 0; top: 8px;
+    height: 4px;
     width: 0;
+    border-radius: 2px;
     background: var(--accent);
-    transition: width .18s linear;
 }
+.aseek b {
+    position: absolute;
+    top: 4px;
+    left: 0;
+    width: 12px; height: 12px;
+    margin-left: -6px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 0 3px rgba(76, 201, 240, .16);
+    transition: box-shadow .15s ease;
+}
+.aseek:hover b, .aseek:focus-visible b { box-shadow: 0 0 0 5px rgba(76, 201, 240, .26); }
+
+.atime {
+    display: flex;
+    gap: 5px;
+    align-items: baseline;
+    font-size: .8rem;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+    margin-top: 1px;
+}
+.atime .asep { opacity: .45; }
+.atime .aleft { margin-left: auto; }
 
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip {
@@ -846,13 +882,26 @@ body:not(.panel-collapsed) .chevron { transform: rotate(180deg); }
                         <span class="flabel">Файл</span>
                         <div class="chips">
                             <button type="button" class="chip" id="audioPick">📂 Выбрать файл</button>
-                            <button type="button" class="chip" id="audioPlay" disabled>▶ Проверить</button>
+                            <button type="button" class="chip" id="audioPlay" disabled>▶ Играть</button>
                             <button type="button" class="chip" id="audioStop" disabled>⏹ Стоп</button>
+                            <button type="button" class="chip" id="audioBack" disabled title="Назад на 10 секунд">⏪ 10</button>
+                            <button type="button" class="chip" id="audioFwd" disabled title="Вперёд на 10 секунд">10 ⏩</button>
                         </div>
                         <div class="hint" id="audioHint">Не выбран · файл остаётся на компьютере</div>
                     </div>
                 </div>
-                <div class="audio-bar" id="audioBar" hidden><i id="audioBarFill"></i></div>
+                <div class="audio-player" id="audioPlayer" hidden>
+                    <div class="aseek" id="audioSeek" role="slider" tabindex="0"
+                         aria-label="Перемотка записи" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                        <i id="audioSeekFill"></i><b id="audioSeekKnob"></b>
+                    </div>
+                    <div class="atime">
+                        <span id="audioElapsed">0:00</span>
+                        <span class="asep">/</span>
+                        <span id="audioTotal">0:00</span>
+                        <span class="aleft" id="audioLeft">осталось 0:00</span>
+                    </div>
+                </div>
                 <input type="file" id="audioFile" accept="audio/*,.mp3,.wav,.ogg,.m4a,.aac,.flac" hidden>
             </div>
 
@@ -1449,6 +1498,41 @@ body:not(.panel-collapsed) .chevron { transform: rotate(180deg); }
             });
             $('audioPlay').addEventListener('click', function () { self.toggle(); });
             $('audioStop').addEventListener('click', function () { self.stop(); });
+            $('audioBack').addEventListener('click', function () { self.skip(-10); });
+            $('audioFwd').addEventListener('click', function () { self.skip(10); });
+
+            /* перемотка: клик по полосе и протаскивание ползунка */
+            var seek = $('audioSeek');
+            var dragging = false;
+            var ratioOf = function (e) {
+                var r = seek.getBoundingClientRect();
+                return r.width > 0 ? clamp((e.clientX - r.left) / r.width, 0, 1) : 0;
+            };
+            seek.addEventListener('pointerdown', function (e) {
+                if (!self.ready) return;
+                dragging = true;
+                try { seek.setPointerCapture(e.pointerId); } catch (err) {}
+                self.seekTo(ratioOf(e));
+            });
+            seek.addEventListener('pointermove', function (e) {
+                if (dragging) self.seekTo(ratioOf(e));
+            });
+            var endDrag = function (e) {
+                if (!dragging) return;
+                dragging = false;
+                try { seek.releasePointerCapture(e.pointerId); } catch (err) {}
+            };
+            seek.addEventListener('pointerup', endDrag);
+            seek.addEventListener('pointercancel', endDrag);
+            seek.addEventListener('keydown', function (e) {
+                if (e.key === 'ArrowLeft') { e.preventDefault(); self.skip(-5); }
+                else if (e.key === 'ArrowRight') { e.preventDefault(); self.skip(5); }
+                else if (e.key === ' ') {
+                    e.preventDefault();
+                    e.stopPropagation();       /* пробел не должен запускать таймер */
+                    self.toggle();
+                }
+            });
 
             var box = $('optAudioStart');
             box.checked = !!settings.audioStart;
@@ -1480,7 +1564,7 @@ body:not(.panel-collapsed) .chevron { transform: rotate(180deg); }
             if (!this.ready) { toast('Сначала выберите аудиофайл'); return; }
             var p = this.el.play();
             if (p && typeof p.catch === 'function') {
-                p.catch(function () { toast('Нажмите «▶ Проверить», чтобы включить звук'); });
+                p.catch(function () { toast('Нажмите «▶ Играть», чтобы включить звук'); });
             }
         },
 
@@ -1501,9 +1585,12 @@ body:not(.panel-collapsed) .chevron { transform: rotate(180deg); }
             var playBtn = $('audioPlay'), stopBtn = $('audioStop');
             if (!playBtn) return;
             var playing = this.ready && !this.el.paused && !this.el.ended;
-            playBtn.textContent = playing ? '⏸ Пауза' : '▶ Проверить';
+            playBtn.textContent = playing ? '⏸ Пауза' : '▶ Играть';
             playBtn.disabled = !this.ready;
             stopBtn.disabled = !this.ready;
+            var back = $('audioBack'), fwd = $('audioFwd');
+            if (back) back.disabled = !this.ready;
+            if (fwd) fwd.disabled = !this.ready;
 
             var hint = $('audioHint');
             if (hint) {
@@ -1512,23 +1599,44 @@ body:not(.panel-collapsed) .chevron { transform: rotate(180deg); }
                         ? 'Выберите заново: ' + settings.audioName
                         : 'Не выбран · файл остаётся на компьютере';
                 } else {
-                    var d = this.el.duration;
-                    var len = (isFinite(d) && d > 0) ? ' · ' + fmtMedia(d) : '';
-                    hint.textContent = this.name + len + (this.dbOk ? '' : ' · после перезагрузки выберите заново');
+                    hint.textContent = this.name + (this.dbOk ? '' : ' · после перезагрузки выберите заново');
                 }
             }
             this.paintProgress();
         },
 
         paintProgress: function () {
-            var bar = $('audioBar'), fill = $('audioBarFill');
-            if (!bar || !fill) return;
-            if (!this.ready) { bar.hidden = true; fill.style.width = '0%'; return; }
+            var player = $('audioPlayer');
+            if (!player) return;
+            if (!this.ready) { player.hidden = true; return; }
+            player.hidden = false;
+
             var d = this.el.duration;
-            var playing = !this.el.paused && !this.el.ended;
-            var pos = (isFinite(d) && d > 0) ? (this.el.currentTime / d * 100) : 0;
-            fill.style.width = pos.toFixed(1) + '%';
-            bar.hidden = !(playing || this.el.currentTime > 0);
+            var ok = isFinite(d) && d > 0;
+            var cur = this.el.currentTime || 0;
+            var ratio = ok ? clamp(cur / d, 0, 1) : 0;
+            var pct = (ratio * 100).toFixed(2) + '%';
+
+            $('audioSeekFill').style.width = pct;
+            $('audioSeekKnob').style.left = pct;
+            $('audioElapsed').textContent = fmtMedia(cur);
+            $('audioTotal').textContent = ok ? fmtMedia(d) : '—:—';
+            $('audioLeft').textContent = ok ? 'осталось ' + fmtMedia(Math.max(0, d - cur)) : '';
+            $('audioSeek').setAttribute('aria-valuenow', String(Math.round(ratio * 100)));
+        },
+
+        seekTo: function (ratio) {
+            var d = this.el.duration;
+            if (!this.ready || !isFinite(d) || d <= 0) return;
+            this.el.currentTime = clamp(ratio, 0, 1) * d;
+            this.paintProgress();
+        },
+
+        skip: function (sec) {
+            var d = this.el.duration;
+            if (!this.ready || !isFinite(d) || d <= 0) return;
+            this.el.currentTime = clamp(this.el.currentTime + sec, 0, d);
+            this.paintProgress();
         },
 
         /* --- IndexedDB: переживаем перезагрузку --- */
