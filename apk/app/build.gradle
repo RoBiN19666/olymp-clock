@@ -1,0 +1,48 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'ru.robin19666.vsohclock'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'ru.robin19666.vsohclock'
+        minSdk 21
+        targetSdk 33
+        versionCode 5
+        versionName '5.0'
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            // подпись по умолчанию отсутствует: Debug-сборка подписывается автоматически
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+}
+
+// Перед сборкой подкладываем свежую версию страницы из корня репозитория,
+// чтобы APK не отставал от index.html.
+def pageSource = rootProject.file('../index.html')
+def assetsDir = file("$projectDir/src/main/assets")
+
+tasks.register('syncPage', Copy) {
+    onlyIf { pageSource.exists() }
+    from pageSource
+    into assetsDir
+    rename { 'clock.html' }
+}
+
+tasks.named('preBuild').configure {
+    dependsOn 'syncPage'
+}
+
+// зависимостей нет вообще: обычный android.webkit — APK получается меньше 200 КБ
+dependencies {
+}

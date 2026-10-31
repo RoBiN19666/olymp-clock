@@ -1,0 +1,29 @@
+# служебное и локальное — в репозиторий не попадает
+.dsh-acl-report/
+
+# старые версии (лежат рядом, но не публикуются)
+Таймер с часами v.3.html
+Таймер с часами и началом-окончанием v.3.html
+Часы_ВСОШ_v.4.html
+old/
+
+# Android / Gradle
+.gradle/
+build/
+apk/.gradle/
+apk/build/
+apk/app/build/
+apk/local.properties
+apk/.idea/
+*.iml
+*.apk
+*.aab
+*.keystore
+*.jks
+
+# система и редакторы
+Thumbs.db
+desktop.ini
+.DS_Store
+*.log
+*.tmp

@@ -1,0 +1,2528 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
+<meta name="description" content="Часы и таймер для олимпиад. Полностью автономный файл: работает без интернета.">
+<title id="pageTitle">Часы ВсОШ — Екатеринбург</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%234cc9f0'/%3E%3Cstop offset='1' stop-color='%234361ee'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='15' fill='%2316213e'/%3E%3Ccircle cx='32' cy='34' r='18' fill='none' stroke='url(%23g)' stroke-width='4.5'/%3E%3Cpath d='M32 22v12l8 5' fill='none' stroke='%23ffffff' stroke-width='4.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='32' cy='34' r='2.8' fill='%234cc9f0'/%3E%3C/svg%3E">
+<meta name="theme-color" content="#16213e">
+<style>
+/* ============================================================
+   Часы и таймер для олимпиад — v5 (объединённая версия)
+   Один файл, без интернета, без внешних зависимостей.
+   ============================================================ */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+:root {
+    --accent: #4cc9f0;
+    --accent2: #4361ee;
+    --warn: #ffb142;
+    --danger: #ff6b6b;
+    --ok: #37d67a;
+    --text: rgba(255, 255, 255, .95);
+    --muted: rgba(255, 255, 255, .55);
+    --bg1: #1a1a2e;
+    --bg2: #16213e;
+    --card: rgba(255, 255, 255, .055);
+    --card2: rgba(255, 255, 255, .10);
+    --line: rgba(255, 255, 255, .10);
+    --scale: 1;
+    --mscale: 1;
+    --radius: 14px;
+    --shadow: 0 10px 30px rgba(0, 0, 0, .28);
+    --ff: 'Segoe UI', system-ui, -apple-system, 'Roboto', Arial, sans-serif;
+}
+
+html[data-theme="light"] {
+    --text: #13233a;
+    --muted: #5a6b80;
+    --bg1: #f3f7fc;
+    --bg2: #dde7f4;
+    --card: rgba(255, 255, 255, .78);
+    --card2: rgba(255, 255, 255, .98);
+    --line: rgba(20, 45, 80, .16);
+    --accent: #0b6cf0;
+    --accent2: #2b4fd8;
+    --warn: #c27500;
+    --danger: #d92b2b;
+    --shadow: 0 10px 26px rgba(30, 60, 110, .14);
+}
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    min-height: 100dvh;
+    background: linear-gradient(135deg, var(--bg1), var(--bg2)) fixed;
+    color: var(--text);
+    font-family: var(--ff);
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.app {
+    width: 100%;
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 18px 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* ---------- заголовок ---------- */
+.header { text-align: center; }
+
+.title {
+    margin: 0;
+    font-size: 4vmin;
+    font-weight: 600;
+    letter-spacing: .3px;
+    line-height: 1.25;
+    cursor: pointer;
+    padding: 2px 10px;
+    border-radius: 10px;
+    display: inline-block;
+    transition: background-color .2s ease;
+}
+.title:hover { background: var(--card); }
+
+.subline {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    justify-content: center;
+    align-items: baseline;
+    color: var(--muted);
+    font-size: 2.2vmin;
+    margin-top: 2px;
+}
+.sep { opacity: .5; }
+.date::before, .msk::before {
+    content: "•";
+    display: inline-block;
+    margin: 0 .45em;
+    opacity: .5;
+}
+.location { cursor: pointer; border-radius: 8px; padding: 1px 6px; transition: background-color .2s ease; }
+.location:hover { background: var(--card); }
+.msk { color: var(--accent); font-variant-numeric: tabular-nums; }
+
+.inline-input {
+    background: transparent;
+    border: 0;
+    border-bottom: 2px solid var(--accent);
+    color: inherit;
+    font: inherit;
+    text-align: center;
+    outline: none;
+    min-width: 6ch;
+    max-width: 78vw;
+    padding: 1px 3px;
+}
+
+/* ---------- часы ---------- */
+.clockwrap { text-align: center; line-height: 1; }
+
+.clock {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 300;
+    letter-spacing: -.02em;
+    font-size: 19.5vmin;
+    font-variant-numeric: tabular-nums;
+    transition: color .3s ease;
+}
+.clock .seg { display: inline-flex; }
+.clock .digit {
+    display: inline-block;
+    width: .62em;
+    text-align: center;
+}
+.clock .colon { padding: 0 .02em; opacity: .9; animation: blink 2s ease-in-out infinite; }
+.clock .seg.s .digit {
+    color: var(--accent);
+    text-shadow: 0 0 14px rgba(76, 201, 240, .45);
+    font-weight: 400;
+    transition: color .35s ease, text-shadow .35s ease;
+}
+body.no-seconds .clock .seg.s,
+body.no-seconds .clock .sec-colon { display: none; }
+
+body.ended .clock .seg.s .digit {
+    color: var(--danger);
+    text-shadow: 0 0 18px rgba(255, 107, 107, .7);
+}
+body.ended .clock { animation: celebrate 2.4s ease-in-out infinite; }
+body.warn .clock .seg.s .digit { color: var(--warn); text-shadow: 0 0 14px rgba(255, 177, 66, .55); }
+
+/* ---------- карточки ---------- */
+.cards {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+.card {
+    flex: 1 1 160px;
+    max-width: 24rem;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 10px 16px;
+    text-align: center;
+    transition: border-color .3s ease;
+}
+.card-label {
+    font-size: 1.8vmin;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.card-value {
+    font-size: 4.6vmin;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--accent);
+    margin-top: 2px;
+    line-height: 1.15;
+}
+.card.primary { border-color: rgba(76, 201, 240, .45); }
+.card.primary .card-value { font-size: 5.2vmin; }
+body.warn .card.primary { border-color: rgba(255, 177, 66, .6); }
+body.warn .card.primary .card-value { color: var(--warn); }
+body.ended .card.primary { border-color: rgba(255, 107, 107, .6); }
+body.ended .card.primary .card-value { color: var(--danger); }
+
+.progress {
+    height: 6px;
+    border-radius: 99px;
+    background: var(--card2);
+    overflow: hidden;
+    border: 1px solid var(--line);
+}
+.progress-fill {
+    height: 100%;
+    width: 0;
+    border-radius: 99px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    transition: width .45s linear, background-color .3s ease;
+}
+body.warn .progress-fill { background: linear-gradient(90deg, var(--warn), #ff7a45); }
+body.ended .progress-fill { background: var(--danger); }
+
+/* ---------- режимы ---------- */
+.modes {
+    display: inline-flex;
+    align-self: center;
+    background: var(--card2);
+    border: 1px solid var(--line);
+    border-radius: 99px;
+    padding: 3px;
+    gap: 2px;
+}
+.mode {
+    background: transparent;
+    border: 0;
+    color: var(--muted);
+    font: inherit;
+    font-size: 2.1vmin;
+    font-weight: 600;
+    padding: 7px 18px;
+    border-radius: 99px;
+    cursor: pointer;
+    transition: color .2s ease, background-color .2s ease;
+    white-space: nowrap;
+}
+.mode:hover { color: var(--text); }
+.mode.active { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; }
+
+/* ---------- панель настроек ---------- */
+.panel {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    overflow: hidden;
+}
+.panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 14px;
+    cursor: pointer;
+    user-select: none;
+}
+.panel-head:hover { background: var(--card2); }
+.panel-title {
+    font-size: 1.9vmin;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.panel-toggle-hint { color: var(--muted); font-weight: 400; font-size: .9em; }
+.panel-body { overflow: hidden; }
+.panel-body.collapsed { display: none; }
+.panel-inner { padding: 2px 14px 14px; display: grid; gap: 12px; }
+
+.panel-section {
+    border-top: 1px solid var(--line);
+    padding-top: 10px;
+    display: grid;
+    gap: 9px;
+}
+.panel-section:first-child { border-top: 0; padding-top: 0; }
+.section-title {
+    font-size: .72rem;
+    text-transform: uppercase;
+    letter-spacing: .09em;
+    color: var(--muted);
+    font-weight: 700;
+}
+
+.row { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: flex-end; }
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field.grow { flex: 1 1 200px; }
+.flabel { font-size: .8rem; color: var(--muted); }
+
+input[type="time"], input[type="number"] {
+    background: var(--card2);
+    border: 1px solid var(--line);
+    color: var(--text);
+    border-radius: 10px;
+    padding: 8px 10px;
+    font: inherit;
+    font-size: 1.05rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color-scheme: dark;
+    width: 100%;
+    min-width: 5.2em;
+}
+html[data-theme="light"] input[type="time"],
+html[data-theme="light"] input[type="number"] { color-scheme: light; }
+input[type="number"] { -moz-appearance: textfield; }
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.hint { font-size: .82rem; color: var(--muted); line-height: 1.35; }
+.hint.err { color: var(--danger); }
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+    background: var(--card2);
+    border: 1px solid var(--line);
+    color: var(--text);
+    border-radius: 99px;
+    padding: 7px 13px;
+    font: inherit;
+    font-size: .86rem;
+    cursor: pointer;
+    transition: border-color .2s ease, color .2s ease, background-color .2s ease;
+    white-space: nowrap;
+}
+.chip:hover { border-color: var(--accent); color: var(--accent); }
+.chip.active { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; border-color: transparent; }
+.chip.static { cursor: default; font-variant-numeric: tabular-nums; min-width: 5.2em; text-align: center; }
+.chip.static:hover { border-color: var(--line); color: var(--text); }
+.chip.danger { border-color: rgba(255, 107, 107, .45); color: var(--danger); }
+.chip.danger:hover { background: rgba(255, 107, 107, .12); }
+
+.btns { display: flex; flex-wrap: wrap; gap: 8px; }
+.btn {
+    border: 1px solid var(--line);
+    background: var(--card2);
+    color: var(--text);
+    border-radius: 10px;
+    padding: 9px 16px;
+    font: inherit;
+    font-size: .88rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: transform .12s ease, background-color .2s ease, border-color .2s ease;
+    white-space: nowrap;
+}
+.btn:hover { transform: translateY(-1px); border-color: var(--accent); }
+.btn:active { transform: none; }
+.btn.primary { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; border-color: transparent; }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn.danger { border-color: rgba(255, 107, 107, .45); color: var(--danger); }
+.btn[disabled] { opacity: .4; cursor: not-allowed; transform: none; border-color: var(--line); }
+
+.switches { display: grid; grid-template-columns: repeat(auto-fit, minmax(215px, 1fr)); gap: 4px 14px; }
+.switch {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: .84rem;
+    cursor: pointer;
+    padding: 6px 8px;
+    border-radius: 8px;
+    user-select: none;
+}
+.switch:hover { background: var(--card2); }
+.switch input {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 38px;
+    height: 22px;
+    border-radius: 99px;
+    background: var(--card2);
+    border: 1px solid var(--line);
+    position: relative;
+    cursor: pointer;
+    transition: background-color .2s ease;
+    flex: none;
+    margin: 0;
+}
+.switch input::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--muted);
+    transition: transform .2s ease, background-color .2s ease;
+}
+.switch input:checked { background: linear-gradient(135deg, var(--accent), var(--accent2)); border-color: transparent; }
+.switch input:checked::after { transform: translateX(16px); background: #fff; }
+.switch input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---------- подвал и автор ---------- */
+.footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px 16px;
+    font-size: .7rem;
+    color: var(--muted);
+    flex-wrap: wrap;
+    padding: 0 4px;
+}
+
+/* когда панель свёрнута — рабочий режим: центрируем и укрупняем */
+body.panel-collapsed .app {
+    min-height: 100vh;
+    min-height: 100dvh;
+    justify-content: center;
+}
+body.panel-collapsed .footer {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 6px;
+    padding: 0 64px 0 22px;
+}
+body.panel-collapsed .clock { font-size: 23vmin; }
+body.panel-collapsed .cards { margin-top: 4px; }
+.keys { opacity: .9; }
+
+.author {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--muted);
+    text-decoration: none;
+    padding: 3px 9px;
+    border-radius: 99px;
+    border: 1px solid transparent;
+    transition: color .2s ease, border-color .2s ease, background-color .2s ease, transform .2s ease;
+}
+.author:hover {
+    color: var(--accent);
+    border-color: rgba(76, 201, 240, .35);
+    background: var(--card);
+    transform: translateY(-1px);
+}
+.author svg {
+    width: 14px;
+    height: 14px;
+    fill: currentColor;
+    transition: transform .3s cubic-bezier(.34, 1.56, .64, 1);
+}
+.author:hover svg { transform: rotate(-14deg) scale(1.18); }
+
+/* ---------- логотип ---------- */
+.logo {
+    position: fixed;
+    right: 12px;
+    bottom: 12px;
+    width: 34px;
+    height: 34px;
+    opacity: .26;
+    border-radius: 8px;
+    cursor: pointer;
+    z-index: 80;
+    transition: opacity .25s ease, transform .25s ease;
+}
+.logo:hover { opacity: .7; transform: scale(1.15) rotate(6deg); }
+.logo.spin { animation: spin .7s cubic-bezier(.68, -.55, .27, 1.55); opacity: 1; }
+
+/* ---------- «время вышло» на самом экране ---------- */
+.card.primary.over {
+    border-color: rgba(255, 107, 107, .65);
+    animation: overPulse 1.9s ease-in-out infinite;
+}
+.card.primary.over .card-label {
+    color: var(--danger);
+    font-size: 22px;            /* запасной размер: JS подгоняет точно по ширине */
+    letter-spacing: .03em;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: visible;
+    text-overflow: clip;
+}
+.card.primary.over .card-value {
+    color: var(--danger);
+    font-size: 34px;
+    letter-spacing: .01em;
+    font-weight: 600;
+    white-space: nowrap;
+}
+@keyframes overPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(255, 107, 107, 0); }
+    50% { box-shadow: 0 0 22px 0 rgba(255, 107, 107, .28); }
+}
+
+/* ---------- анимации интерфейса ---------- */
+.chevron {
+    display: inline-block;
+    transition: transform .32s cubic-bezier(.4, 0, .2, 1);
+}
+body:not(.panel-collapsed) .chevron { transform: rotate(180deg); }
+
+.cards.swap .card { animation: cardIn .42s cubic-bezier(.22, .9, .24, 1) backwards; }
+.cards.swap .card:nth-child(2) { animation-delay: .06s; }
+.cards.swap .card:nth-child(3) { animation-delay: .12s; }
+@keyframes cardIn {
+    from { opacity: 0; transform: translateY(10px) scale(.985); }
+    to { opacity: 1; transform: none; }
+}
+
+.panel-section.enter { animation: sectionIn .36s cubic-bezier(.22, .9, .24, 1); }
+@keyframes sectionIn {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: none; }
+}
+
+.mode { transition: color .2s ease, background-color .25s ease, box-shadow .25s ease, transform .15s ease; }
+.mode:active { transform: scale(.97); }
+.mode.active { box-shadow: 0 4px 16px rgba(67, 97, 238, .38); }
+
+.card { transition: border-color .3s ease, box-shadow .3s ease, transform .3s ease; }
+
+/* ---------- мелочи ---------- */
+.confetti {
+    position: fixed;
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    pointer-events: none;
+    z-index: 150;
+    top: -20px;
+    animation: fall linear forwards;
+}
+.toast {
+    position: fixed;
+    left: 50%;
+    bottom: 26px;
+    transform: translateX(-50%);
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 12px;
+    font-size: .86rem;
+    font-weight: 600;
+    z-index: 300;
+    box-shadow: var(--shadow);
+    animation: toastIn .25s ease;
+    max-width: 90vw;
+    text-align: center;
+    pointer-events: none;
+}
+.hidden { display: none !important; }
+
+@keyframes blink { 0%, 100% { opacity: .85; } 50% { opacity: .3; } }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .62; } }
+@keyframes celebrate { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.025); } }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fall {
+    from { transform: translateY(-12vh) rotate(0deg); opacity: 1; }
+    to { transform: translateY(108vh) rotate(560deg); opacity: .85; }
+}
+@keyframes spin {
+    0% { transform: rotate(0deg) scale(1.4); }
+    100% { transform: rotate(360deg) scale(1.4); }
+}
+@keyframes toastIn {
+    from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+    to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* ---------- адаптивные размеры ----------
+   Только для браузеров, которые понимают clamp(): в старых (Chrome < 79)
+   такое объявление делает свойство невалидным и сбрасывает его в inherited,
+   поэтому здесь, а не в основных правилах. Базовые правила выше содержат
+   простые значения, которые работают везде. */
+@supports (font-size: clamp(1rem, 1vw, 2rem)) {
+    .app {
+        padding: clamp(10px, 2.2vh, 26px) clamp(10px, 2.5vw, 26px);
+        gap: clamp(8px, 1.3vh, 16px);
+    }
+    .title { font-size: calc(clamp(1.15rem, 4vmin, 2.5rem) * var(--scale)); }
+    .subline { font-size: calc(clamp(.82rem, 2.2vmin, 1.25rem) * var(--scale)); }
+    .clock { font-size: calc(clamp(3.2rem, 19.5vmin, 11rem) * var(--scale)); }
+    body.panel-collapsed .clock { font-size: calc(clamp(3.2rem, 23vmin, 12.5rem) * var(--scale)); }
+    .cards { gap: clamp(6px, 1vw, 14px); }
+    .card { padding: clamp(6px, 1.1vh, 14px) clamp(10px, 1.6vw, 22px); }
+    .card-label { font-size: calc(clamp(.66rem, 1.8vmin, .95rem) * var(--scale)); }
+    .card-value { font-size: calc(clamp(1.2rem, 4.6vmin, 2.6rem) * var(--scale)); }
+    .card.primary .card-value { font-size: calc(clamp(1.35rem, 5.2vmin, 3.1rem) * var(--scale)); }
+    .card.primary.over .card-value { font-size: calc(clamp(1rem, 4.6vmin, 2.6rem) * var(--scale)); }
+    .mode { font-size: clamp(.84rem, 2.1vmin, 1.1rem); }
+    .panel-title { font-size: clamp(.82rem, 1.9vmin, .98rem); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
+    .clock .colon { animation: none !important; opacity: .85; }
+}
+
+@media (max-width: 760px) {
+    .app { gap: 8px; padding: 10px 10px 14px; }
+
+    .title {
+        font-size: calc(1.08rem * var(--mscale));
+        line-height: 1.2;
+        padding: 0 4px;
+    }
+    .subline { font-size: calc(.78rem * var(--mscale)); gap: 0 2px; }
+
+    .clockwrap { margin: 2px 0; }
+    .clock,
+    body.panel-collapsed .clock {
+        font-size: calc(19vw * var(--mscale));
+    }
+
+    .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .cards .card { flex: none; max-width: none; padding: 6px 8px; border-radius: 10px; }
+    .cards .card.primary { grid-column: 1 / -1; }
+    .card-label { font-size: calc(.58rem * var(--mscale)); letter-spacing: .05em; }
+    .card-value { font-size: calc(1.22rem * var(--mscale)); margin-top: 1px; }
+    .cards .card.primary .card-value { font-size: calc(1.72rem * var(--mscale)); }
+    .cards .card.primary.over .card-value { font-size: calc(2.05rem * var(--mscale)); }
+
+    .modes { align-self: stretch; display: flex; }
+    .mode { flex: 1 1 0; padding: 8px 6px; font-size: calc(.8rem * var(--mscale)); }
+
+    .panel-inner { padding: 2px 10px 12px; }
+    .panel-head { padding: 9px 10px; }
+    .switches { gap: 0; }
+    .switch { padding: 5px 2px; font-size: calc(.82rem * var(--mscale)); }
+    .chips { gap: 5px; }
+    .chip { padding: 6px 10px; font-size: .76rem; }
+
+    .btns .btn { flex: 1 1 120px; justify-content: center; }
+    .footer { justify-content: center; text-align: center; }
+    .keys { display: none; }
+    .logo { display: none; }
+    body.panel-collapsed .footer { display: none; }
+}
+
+@media (max-height: 620px) {
+    .app { gap: 6px; padding-top: 6px; }
+    .footer { display: none; }
+}
+
+/* ---------- большие экраны: 3K/4K ноутбуки и мониторы при масштабе 100% ---------- */
+@media (min-width: 1600px) {
+    html { font-size: 19px; }
+    .app { max-width: 1420px; }
+    .card { max-width: 26rem; }
+}
+@media (min-width: 2400px) {
+    html { font-size: 22px; }
+    .app { max-width: 1620px; }
+}
+
+</style>
+</head>
+<body class="no-seconds">
+
+<div class="app" id="app">
+
+    <header class="header">
+        <h1 class="title" id="eventTitle" title="Нажмите, чтобы изменить название">Всероссийская олимпиада школьников</h1>
+        <div class="subline">
+            <span class="location" id="eventLocation" title="Нажмите, чтобы изменить место">г. Екатеринбург</span>
+            <span class="date" id="currentDate">—</span>
+            <span class="msk hidden" id="mskClock"></span>
+        </div>
+    </header>
+
+    <div class="clockwrap">
+        <div class="clock" id="clock">
+            <span class="seg h"><span class="digit">0</span><span class="digit">0</span></span>
+            <span class="colon">:</span>
+            <span class="seg m"><span class="digit">0</span><span class="digit">0</span></span>
+            <span class="colon sec-colon">:</span>
+            <span class="seg s"><span class="digit">0</span><span class="digit">0</span></span>
+        </div>
+    </div>
+
+    <div class="cards">
+        <div class="card">
+            <div class="card-label">Начало</div>
+            <div class="card-value" id="displayStart">--:--</div>
+        </div>
+        <div class="card">
+            <div class="card-label">Окончание</div>
+            <div class="card-value" id="displayEnd">--:--</div>
+        </div>
+        <div class="card primary">
+            <div class="card-label" id="remainingLabel">Осталось</div>
+            <div class="card-value" id="displayRemaining">00:00:00</div>
+        </div>
+    </div>
+
+    <div class="progress"><div class="progress-fill" id="progressFill"></div></div>
+
+    <div class="modes" role="tablist" aria-label="Режим работы">
+        <button class="mode active" id="modeSchedule" role="tab" aria-selected="true" data-mode="schedule">📅 Расписание</button>
+        <button class="mode" id="modeTimer" role="tab" aria-selected="false" data-mode="timer">⏱ Таймер</button>
+    </div>
+
+    <section class="panel">
+        <div class="panel-head" id="panelHead" role="button" tabindex="0" aria-expanded="true">
+            <div class="panel-title">⚙️ Настройки</div>
+            <div class="panel-title panel-toggle-hint"><span id="panelToggleText">свернуть</span> <span class="chevron" aria-hidden="true">▾</span></div>
+        </div>
+
+        <div class="panel-body" id="panelBody">
+        <div class="panel-inner">
+
+            <!-- РАСПИСАНИЕ -->
+            <div class="panel-section" id="scheduleSection">
+                <div class="section-title">Расписание олимпиады</div>
+                <div class="row">
+                    <label class="field">
+                        <span class="flabel">Начало</span>
+                        <input type="time" id="startTime" step="60" value="11:00">
+                    </label>
+                    <label class="field">
+                        <span class="flabel">Окончание</span>
+                        <input type="time" id="endTime" step="60" value="14:00">
+                    </label>
+                    <div class="field grow">
+                        <span class="flabel">Быстрый выбор</span>
+                        <div class="chips" id="schedulePresets">
+                            <button type="button" class="chip" data-start="11:00" data-end="13:30">11:00–13:30</button>
+                            <button type="button" class="chip" data-start="11:00" data-end="14:00">11:00–14:00</button>
+                            <button type="button" class="chip" data-start="11:00" data-end="15:00">11:00–15:00</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="hint" id="scheduleHint">Длительность: 3 ч 00 мин</div>
+                <div class="hint err hidden" id="scheduleError">Окончание должно быть позже начала</div>
+            </div>
+
+            <!-- ТАЙМЕР -->
+            <div class="panel-section hidden" id="timerSection">
+                <div class="section-title">Таймер на длительность</div>
+                <div class="row">
+                    <label class="field">
+                        <span class="flabel">Часы</span>
+                        <input type="number" id="durH" min="0" max="23" step="1" inputmode="numeric" value="0">
+                    </label>
+                    <label class="field">
+                        <span class="flabel">Минуты</span>
+                        <input type="number" id="durM" min="0" max="59" step="1" inputmode="numeric" value="45">
+                    </label>
+                    <div class="field grow">
+                        <span class="flabel">Быстрый выбор</span>
+                        <div class="chips" id="durationPresets">
+                            <button type="button" class="chip" data-min="30">30 мин</button>
+                            <button type="button" class="chip" data-min="45">45 мин</button>
+                            <button type="button" class="chip" data-min="60">1 ч</button>
+                            <button type="button" class="chip" data-min="90">1,5 ч</button>
+                            <button type="button" class="chip" data-min="120">2 ч</button>
+                            <button type="button" class="chip" data-min="180">3 ч</button>
+                            <button type="button" class="chip" data-min="240">4 ч</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="hint" id="timerHint">Отсчёт идёт по монотонному времени: смена системных часов и уход в сон не сбивают его.</div>
+                <div class="btns">
+                    <button type="button" class="btn primary" id="btnStart">▶ Старт</button>
+                    <button type="button" class="btn" id="btnPause" disabled>⏸ Пауза</button>
+                    <button type="button" class="btn danger" id="btnStop" disabled>⏹ Стоп</button>
+                    <button type="button" class="btn" id="btnAdd1" disabled>+1 мин</button>
+                    <button type="button" class="btn" id="btnAdd5" disabled>+5 мин</button>
+                </div>
+            </div>
+
+            <!-- ОТОБРАЖЕНИЕ -->
+            <div class="panel-section">
+                <div class="section-title">Отображение и звук</div>
+                <div class="switches">
+                    <label class="switch"><span>Показывать секунды</span><input type="checkbox" id="optSeconds" checked></label>
+                    <label class="switch"><span>Часы Москвы</span><input type="checkbox" id="optMsk"></label>
+                    <label class="switch"><span>Звуковые сигналы</span><input type="checkbox" id="optSound" checked></label>
+                    <label class="switch"><span>Предупреждения 10 / 5 / 1 мин</span><input type="checkbox" id="optWarn" checked></label>
+                    <label class="switch"><span>Не гасить экран</span><input type="checkbox" id="optWake" checked></label>
+                </div>
+                <div class="row">
+                    <div class="field">
+                        <span class="flabel">Масштаб</span>
+                        <div class="chips">
+                            <button type="button" class="chip" id="scaleDown" title="Уменьшить (клавиша −)">−</button>
+                            <button type="button" class="chip static" id="scaleValue">100%</button>
+                            <button type="button" class="chip" id="scaleUp" title="Увеличить (клавиша +)">+</button>
+                        </div>
+                    </div>
+                    <div class="field">
+                        <span class="flabel">Тема</span>
+                        <div class="chips">
+                            <button type="button" class="chip" id="themeDark" data-theme-btn="dark">Тёмная</button>
+                            <button type="button" class="chip" id="themeLight" data-theme-btn="light">Светлая</button>
+                        </div>
+                    </div>
+                    <div class="field grow">
+                        <span class="flabel">Экран и звук</span>
+                        <div class="chips">
+                            <button type="button" class="chip" id="btnFullscreen">⛶ Во весь экран (F)</button>
+                            <button type="button" class="chip" id="btnTestSound">🔔 Проверить звук</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ВРЕМЯ -->
+            <div class="panel-section">
+                <div class="section-title">Время и синхронизация</div>
+                <div class="row">
+                    <div class="field grow">
+                        <span class="flabel">Источник времени</span>
+                        <div class="hint" id="timeSourceInfo">Часы компьютера (интернет не требуется)</div>
+                    </div>
+                    <div class="field">
+                        <span class="flabel">Поправка часов</span>
+                        <div class="chips">
+                            <button type="button" class="chip" id="corrMinus">−30 с</button>
+                            <button type="button" class="chip static" id="corrValue">0 с</button>
+                            <button type="button" class="chip" id="corrPlus">+30 с</button>
+                            <button type="button" class="chip" id="corrReset" title="Сбросить поправку">↺</button>
+                        </div>
+                    </div>
+                    <div class="field">
+                        <span class="flabel">Действия</span>
+                        <div class="chips">
+                            <button type="button" class="chip" id="btnSync">⟳ Синхронизировать</button>
+                            <button type="button" class="chip danger" id="btnReset">Сброс настроек</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="hint">Если в кабинете нет интернета — просто работайте: часы и таймер полностью автономны.</div>
+            </div>
+
+        </div>
+        </div>
+    </section>
+
+    <footer class="footer">
+        <span class="keys">F — весь экран · Пробел — старт/пауза · R — сброс · H — настройки · +/− — масштаб</span>
+        <a class="author" href="https://t.me/robin19666" target="_blank" rel="noopener noreferrer"
+           title="Telegram: @robin19666">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M21.94 4.31 18.9 19.1c-.23 1.02-.84 1.27-1.7.79l-4.7-3.47-2.27 2.19c-.25.25-.46.46-.94.46l.34-4.8 8.74-7.9c.38-.34-.08-.53-.59-.19L7.7 13.1l-4.65-1.45c-1.01-.32-1.03-1.01.21-1.5L19.8 2.6c.84-.31 1.58.2 1.31 1.71z"/></svg>
+            <span>@robin19666</span>
+        </a>
+    </footer>
+
+</div>
+
+<img class="logo" id="logo" src="data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4KPCFET0NUWVBFIHN2ZyBQVUJMSUMgIi0vL1czQy8vRFREIFNWRyAxLjEvL0VOIiAiaHR0cDovL3d3dy53My5vcmcvR3JhcGhpY3MvU1ZHLzEuMS9EVEQvc3ZnMTEuZHRkIj4KPHN2ZyB2ZXJzaW9uPSIxLjEiIGlkPSJMYXllcl8xIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHhtbG5zOnhsaW5rPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rIiB4PSIwcHgiIHk9IjBweCIKd2lkdGg9IjExNTVweCIgaGVpZ2h0PSIxMTU1cHgiIHZpZXdCb3g9IjAgMCAxMTU1IDExNTUiIGVuYWJsZS1iYWNrZ3JvdW5kPSJuZXcgMCAwIDExNTUgMTE1NSIgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+CjxyZWN0IHg9IjAiIHk9IjAiIHdpZHRoPSIxMTU1IiBoZWlnaHQ9IjExNTUiIGZpbGw9InJnYigyNTUsMjU1LDI1NSkiIC8+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNzAsNzApIj48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgyODAsMCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgzNTAsMCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg0MjAsMCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg0NTUsMCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg1MjUsMCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg2MzAsMCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg2NjUsMCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg3MDAsMCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgyODAsMzUpIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMzE1LDM1KSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDQ1NSwzNSkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg1NjAsMzUpIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNzAwLDM1KSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDUyNSw3MCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg2MzAsNzApIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNzAwLDcwKSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDI4MCwxMDUpIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMzUwLDEwNSkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgzODUsMTA1KSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDQyMCwxMDUpIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNDkwLDEwNSkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg1OTUsMTA1KSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDY2NSwxMDUpIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMzUwLDE0MCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgzODUsMTQwKSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDQ5MCwxNDApIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNTI1LDE0MCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg2NjUsMTQwKSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDcwMCwxNDApIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMzE1LDE3NSkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgzODUsMTc1KSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDQ1NSwxNzUpIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNTYwLDE3NSkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg1OTUsMTc1KSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDYzMCwxNzUpIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNjY1LDE3NSkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg3MDAsMTc1KSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDI4MCwyMTApIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMzUwLDIxMCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg0MjAsMjEwKSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDQ5MCwyMTApIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNTYwLDIxMCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg2MzAsMjEwKSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDcwMCwyMTApIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMjgwLDI0NSkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgzMTUsMjQ1KSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDM1MCwyNDUpIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMzg1LDI0NSkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg0MjAsMjQ1KSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDUyNSwyNDUpIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNTYwLDI0NSkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg1OTUsMjQ1KSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDYzMCwyNDUpIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMCwyODApIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNzAsMjgwKSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDEwNSwyODApIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMTc1LDI4MCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgyMTAsMjgwKSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDI0NSwyODApIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMzUwLDI4MCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgzODUsMjgwKSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDQyMCwyODApIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNDU1LDI4MCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg1OTUsMjgwKSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDYzMCwyODApIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNzcwLDI4MCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg4NzUsMjgwKSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDk0NSwyODApIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoOTgwLDI4MCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgzNSwzMTUpIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNzAsMzE1KSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDEwNSwzMTUpIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMTc1LDMxNSkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgzNTAsMzE1KSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDQyMCwzMTUpIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNDU1LDMxNSkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg0OTAsMzE1KSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDU5NSwzMTUpIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNjMwLDMxNSkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg2NjUsMzE1KSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDcwMCwzMTUpIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNzM1LDMxNSkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg3NzAsMzE1KSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDgwNSwzMTUpIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoODQwLDMxNSkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg5ODAsMzE1KSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDcwLDM1MCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgxMDUsMzUwKSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDE3NSwzNTApIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMjEwLDM1MCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgyNDUsMzUwKSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDMxNSwzNTApIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMzg1LDM1MCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg0MjAsMzUwKSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDQ1NSwzNTApIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNTYwLDM1MCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg1OTUsMzUwKSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDYzMCwzNTApIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNzcwLDM1MCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg4MDUsMzUwKSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDg0MCwzNTApIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoOTEwLDM1MCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg5NDUsMzUwKSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDAsMzg1KSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDM1LDM4NSkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg3MCwzODUpIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMTQwLDM4NSkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgzNTAsMzg1KSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDQyMCwzODUpIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNTI1LDM4NSkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg2MzAsMzg1KSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDY2NSwzODUpIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNzM1LDM4NSkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg3NzAsMzg1KSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDgwNSwzODUpIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoODQwLDM4NSkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg5ODAsMzg1KSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDAsNDIwKSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDM1LDQyMCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgxMDUsNDIwKSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDE3NSw0MjApIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMjEwLDQyMCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgzNTAsNDIwKSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDQ5MCw0MjApIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNTYwLDQyMCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg1OTUsNDIwKSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDYzMCw0MjApIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoODc1LDQyMCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg5MTAsNDIwKSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDAsNDU1KSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDM1LDQ1NSkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg3MCw0NTUpIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMTA1LDQ1NSkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgzMTUsNDU1KSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDM4NSw0NTUpIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNDkwLDQ1NSkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg1NjAsNDU1KSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDY2NSw0NTUpIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNzcwLDQ1NSkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg4MDUsNDU1KSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDkxMCw0NTUpIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoOTQ1LDQ1NSkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg5ODAsNDU1KSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDAsNDkwKSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDcwLDQ5MCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgxMDUsNDkwKSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDIxMCw0OTApIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMjgwLDQ5MCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg0MjAsNDkwKSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDQ1NSw0OTApIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNTYwLDQ5MCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg1OTUsNDkwKSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDYzMCw0OTApIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNjY1LDQ5MCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg3MzUsNDkwKSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDgwNSw0OTApIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoODQwLDQ5MCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg5MTAsNDkwKSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDk0NSw0OTApIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoOTgwLDQ5MCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgwLDUyNSkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgxNzUsNTI1KSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDI0NSw1MjUpIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNDIwLDUyNSkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg0OTAsNTI1KSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDU2MCw1MjUpIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNjY1LDUyNSkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg3MzUsNTI1KSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDc3MCw1MjUpIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoODA1LDUyNSkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg4NDAsNTI1KSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDk0NSw1MjUpIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMCw1NjApIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMzUsNTYwKSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDE0MCw1NjApIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMTc1LDU2MCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgyMTAsNTYwKSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDI4MCw1NjApIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMzE1LDU2MCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgzNTAsNTYwKSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDQ5MCw1NjApIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNTI1LDU2MCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg3MzUsNTYwKSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDg0MCw1NjApIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoODc1LDU2MCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg5NDUsNTYwKSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDM1LDU5NSkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg3MCw1OTUpIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMTA1LDU5NSkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgxNDAsNTk1KSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDE3NSw1OTUpIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMjgwLDU5NSkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgzNTAsNTk1KSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDM4NSw1OTUpIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNDIwLDU5NSkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg0OTAsNTk1KSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDUyNSw1OTUpIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNjMwLDU5NSkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg3MDAsNTk1KSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDczNSw1OTUpIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoODA1LDU5NSkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg4NzUsNTk1KSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDkxMCw1OTUpIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoOTQ1LDU5NSkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgwLDYzMCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgxMDUsNjMwKSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDIxMCw2MzApIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMjQ1LDYzMCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgyODAsNjMwKSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDMxNSw2MzApIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMzg1LDYzMCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg0NTUsNjMwKSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDQ5MCw2MzApIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNTI1LDYzMCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg1NjAsNjMwKSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDU5NSw2MzApIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNzAwLDYzMCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg3MzUsNjMwKSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDgwNSw2MzApIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoOTEwLDYzMCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgyNDUsNjY1KSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDI4MCw2NjUpIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMzE1LDY2NSkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgzNTAsNjY1KSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDM4NSw2NjUpIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNDIwLDY2NSkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg0NTUsNjY1KSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDQ5MCw2NjUpIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNTk1LDY2NSkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg2NjUsNjY1KSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDczNSw2NjUpIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNzcwLDY2NSkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg5MTAsNjY1KSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDM1LDcwMCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgxNDAsNzAwKSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDIxMCw3MDApIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMjQ1LDcwMCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgyODAsNzAwKSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDQyMCw3MDApIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNDU1LDcwMCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg0OTAsNzAwKSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDUyNSw3MDApIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNTYwLDcwMCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg2MzAsNzAwKSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDY2NSw3MDApIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNzAwLDcwMCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg3MzUsNzAwKSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDc3MCw3MDApIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoODA1LDcwMCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg4NDAsNzAwKSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDg3NSw3MDApIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoOTEwLDcwMCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgyODAsNzM1KSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDMxNSw3MzUpIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMzg1LDczNSkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg0MjAsNzM1KSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDU2MCw3MzUpIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNTk1LDczNSkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg3MDAsNzM1KSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDg0MCw3MzUpIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoODc1LDczNSkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg5MTAsNzM1KSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDk0NSw3MzUpIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoOTgwLDczNSkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgyODAsNzcwKSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDQyMCw3NzApIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNDkwLDc3MCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg2MzAsNzcwKSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDY2NSw3NzApIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNzAwLDc3MCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg3NzAsNzcwKSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDg0MCw3NzApIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoODc1LDc3MCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg5NDUsNzcwKSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDI4MCw4MDUpIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMzE1LDgwNSkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgzNTAsODA1KSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDQyMCw4MDUpIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNDU1LDgwNSkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg0OTAsODA1KSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDUyNSw4MDUpIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNTYwLDgwNSkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg2MzAsODA1KSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDcwMCw4MDUpIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoODQwLDgwNSkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg4NzUsODA1KSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDk4MCw4MDUpIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMzE1LDg0MCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgzODUsODQwKSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDQyMCw4NDApIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNTI1LDg0MCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg1OTUsODQwKSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDcwMCw4NDApIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNzM1LDg0MCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg3NzAsODQwKSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDgwNSw4NDApIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoODQwLDg0MCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg5MTAsODQwKSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDI4MCw4NzUpIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMzE1LDg3NSkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgzNTAsODc1KSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDM4NSw4NzUpIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNDIwLDg3NSkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg1MjUsODc1KSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDU2MCw4NzUpIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNTk1LDg3NSkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg2MzAsODc1KSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDY2NSw4NzUpIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNzAwLDg3NSkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg3MzUsODc1KSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDg0MCw4NzUpIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoODc1LDg3NSkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg5ODAsODc1KSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDI4MCw5MTApIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMzE1LDkxMCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgzNTAsOTEwKSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDM4NSw5MTApIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNDU1LDkxMCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg0OTAsOTEwKSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDU5NSw5MTApIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNjY1LDkxMCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg3MzUsOTEwKSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDgwNSw5MTApIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoOTEwLDkxMCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg5ODAsOTEwKSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDM4NSw5NDUpIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNTYwLDk0NSkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg2MzAsOTQ1KSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDcwMCw5NDUpIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoODA1LDk0NSkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg4NzUsOTQ1KSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDk0NSw5NDUpIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMjgwLDk4MCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgzODUsOTgwKSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDQ1NSw5ODApIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNTI1LDk4MCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg2MzAsOTgwKSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDY2NSw5ODApIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNzAwLDk4MCkgc2NhbGUoMC4zNSwwLjM1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg4NzUsOTgwKSBzY2FsZSgwLjM1LDAuMzUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDk0NSw5ODApIHNjYWxlKDAuMzUsMC4zNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoMCwwKSBzY2FsZSgyLjQ1LCAyLjQ1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPGc+Cgk8cmVjdCB4PSIxNSIgeT0iMTUiIHN0eWxlPSJmaWxsOm5vbmU7IiB3aWR0aD0iNzAiIGhlaWdodD0iNzAiLz4KCTxwYXRoIGQ9Ik04NSwwSDE1SDB2MTV2NzB2MTVoMTVoNzBoMTVWODVWMTVWMEg4NXogTTg1LDg1SDE1VjE1aDcwVjg1eiIvPgo8L2c+CjwvZz48L2c+PGcgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoNzcwLDApIHNjYWxlKDIuNDUsIDIuNDUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8Zz4KCTxyZWN0IHg9IjE1IiB5PSIxNSIgc3R5bGU9ImZpbGw6bm9uZTsiIHdpZHRoPSI3MCIgaGVpZ2h0PSI3MCIvPgoJPHBhdGggZD0iTTg1LDBIMTVIMHYxNXY3MHYxNWgxNWg3MGgxNVY4NVYxNVYwSDg1eiBNODUsODVIMTVWMTVoNzBWODV6Ii8+CjwvZz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSgwLDc3MCkgc2NhbGUoMi40NSwgMi40NSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxnPgoJPHJlY3QgeD0iMTUiIHk9IjE1IiBzdHlsZT0iZmlsbDpub25lOyIgd2lkdGg9IjcwIiBoZWlnaHQ9IjcwIi8+Cgk8cGF0aCBkPSJNODUsMEgxNUgwdjE1djcwdjE1aDE1aDcwaDE1Vjg1VjE1VjBIODV6IE04NSw4NUgxNVYxNWg3MFY4NXoiLz4KPC9nPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDcwLDcwKSBzY2FsZSgxLjA1LCAxLjA1KSI+PGcgdHJhbnNmb3JtPSIiIHN0eWxlPSJmaWxsOiByZ2IoMCwgMCwgMCk7Ij4KPHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiLz4KPC9nPjwvZz48ZyB0cmFuc2Zvcm09InRyYW5zbGF0ZSg4NDAsNzApIHNjYWxlKDEuMDUsIDEuMDUpIj48ZyB0cmFuc2Zvcm09IiIgc3R5bGU9ImZpbGw6IHJnYigwLCAwLCAwKTsiPgo8cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIvPgo8L2c+PC9nPjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDcwLDg0MCkgc2NhbGUoMS4wNSwgMS4wNSkiPjxnIHRyYW5zZm9ybT0iIiBzdHlsZT0iZmlsbDogcmdiKDAsIDAsIDApOyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIi8+CjwvZz48L2c+PC9nPjwvc3ZnPg==" alt="Логотип" title="Нашёл пасхалку? 😉">
+
+<script>
+(function () {
+    'use strict';
+
+    /* =========================================================
+       0. Утилиты
+       ========================================================= */
+    var $ = function (id) { return document.getElementById(id); };
+    var pad2 = function (n) { return (n < 10 ? '0' : '') + n; };
+    var clamp = function (v, a, b) { return v < a ? a : (v > b ? b : v); };
+    var perfNow = (window.performance && window.performance.now)
+        ? function () { return window.performance.now(); }
+        : function () { return Date.now(); };
+    var REDUCED = false;
+    try { REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { }
+
+    var MONTHS = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+                  'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+    var DAYS = ['воскресенье', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота'];
+
+    /* Формат миллисекунд -> всегда ЧЧ:ММ:СС (часы могут быть > 24) */
+    function fmtHMS(ms) {
+        var total = Math.max(0, Math.round(ms / 1000));
+        var h = Math.floor(total / 3600);
+        var m = Math.floor((total % 3600) / 60);
+        var s = total % 60;
+        return pad2(h) + ':' + pad2(m) + ':' + pad2(s);
+    }
+    function fmtHMfromSec(sec) {
+        var h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60);
+        return pad2(h) + ':' + pad2(m);
+    }
+    function parseHM(str) {
+        var m = /^\s*(\d{1,2})\s*[:.\-]\s*(\d{1,2})\s*$/.exec(String(str || ''));
+        if (!m) return null;
+        var h = parseInt(m[1], 10), mi = parseInt(m[2], 10);
+        if (isNaN(h) || isNaN(mi) || h > 23 || mi > 59) return null;
+        return h * 3600 + mi * 60;
+    }
+
+    /* =========================================================
+       1. Хранилище (не падает, если localStorage недоступен)
+       ========================================================= */
+    var NS = 'olympClock5.';
+    var Store = {
+        get: function (k, def) {
+            try {
+                var raw = localStorage.getItem(NS + k);
+                return raw === null ? def : JSON.parse(raw);
+            } catch (e) { return def; }
+        },
+        set: function (k, v) {
+            try { localStorage.setItem(NS + k, JSON.stringify(v)); } catch (e) { }
+        },
+        del: function (k) {
+            try { localStorage.removeItem(NS + k); } catch (e) { }
+        },
+        has: function (k) {
+            try { return localStorage.getItem(NS + k) !== null; } catch (e) { return false; }
+        }
+    };
+
+    /* =========================================================
+       2. Настройки
+       ========================================================= */
+    var ZONE = { tz: 'Asia/Yekaterinburg', city: 'Екатеринбург' };
+
+    var DEFAULTS = {
+        title: 'Всероссийская олимпиада школьников',
+        location: 'г. Екатеринбург',
+        mode: 'schedule',
+        start: '11:00',
+        end: '14:00',
+        durationMs: 45 * 60000,
+        showSeconds: true,
+        showMsk: false,
+        sound: true,
+        warn: true,
+        wake: true,
+        theme: 'dark',
+        scale: 1,
+        manualOffset: 0,
+        panelOpen: true
+    };
+
+    var settings = {};
+    (function loadSettings() {
+        var saved = Store.get('settings', null);
+        var key;
+        for (key in DEFAULTS) { if (DEFAULTS.hasOwnProperty(key)) settings[key] = DEFAULTS[key]; }
+        if (saved && typeof saved === 'object') {
+            for (key in saved) {
+                if (saved.hasOwnProperty(key) && DEFAULTS.hasOwnProperty(key)) settings[key] = saved[key];
+            }
+        }
+        settings.scale = clamp(Number(settings.scale) || 1, 0.6, 2);
+        settings.manualOffset = Number(settings.manualOffset) || 0;
+    })();
+
+    function saveSettings() { Store.set('settings', settings); }
+
+    /* Перенос настроек из старых версий (v.3 / v.4) */
+    (function migrateOld() {
+        if (Store.has('settings')) return;
+        var patch = {};
+        try {
+            var oldTitle = localStorage.getItem('eventTitle');
+            if (oldTitle) patch.title = oldTitle;
+
+            var os = JSON.parse(localStorage.getItem('olympStart') || 'null');
+            var oe = JSON.parse(localStorage.getItem('olympEnd') || 'null');
+            if (os && oe && typeof os.hour === 'number' && typeof oe.hour === 'number') {
+                patch.start = pad2(os.hour) + ':' + pad2(os.minute || 0);
+                patch.end = pad2(oe.hour) + ':' + pad2(oe.minute || 0);
+                patch.mode = 'schedule';
+            }
+
+            var td = JSON.parse(localStorage.getItem('timerDuration') || 'null');
+            if (td) {
+                var mins = (Number(td.hour) || 0) * 60 + (Number(td.minute) || 0);
+                if (mins > 0) {
+                    patch.durationMs = mins * 60000;
+                    if (!patch.mode) patch.mode = 'timer';
+                }
+            }
+        } catch (e) { }
+        var k;
+        for (k in patch) { if (patch.hasOwnProperty(k)) settings[k] = patch[k]; }
+        saveSettings();
+    })();
+
+    /* =========================================================
+       3. Часовой пояс олимпиады (не зависит от часового пояса ПК)
+       ========================================================= */
+    var TZ = (function () {
+        var fmtCache = {};
+
+        function makeFmt(tz) {
+            if (fmtCache[tz]) return fmtCache[tz];
+            var fmt = null;
+            try {
+                fmt = new Intl.DateTimeFormat('en-GB', {
+                    timeZone: tz,
+                    hourCycle: 'h23',
+                    year: 'numeric', month: '2-digit', day: '2-digit',
+                    hour: '2-digit', minute: '2-digit', second: '2-digit',
+                    weekday: 'short'
+                });
+            } catch (e) { fmt = null; }
+            fmtCache[tz] = fmt;
+            return fmt;
+        }
+
+        var WD = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+
+        function localParts(ms) {
+            var d = new Date(ms);
+            return {
+                y: d.getFullYear(), mo: d.getMonth() + 1, d: d.getDate(),
+                h: d.getHours(), mi: d.getMinutes(), s: d.getSeconds(),
+                wd: d.getDay(), offMin: -d.getTimezoneOffset()
+            };
+        }
+
+        return {
+            /* На старых браузерах (без formatToParts) считаем по времени компьютера:
+               иначе часы вообще не нарисуются. */
+            tzSupported: function (tz) {
+                var f = makeFmt(tz || ZONE.tz);
+                return !!(f && f.formatToParts);
+            },
+
+            parts: function (ms, tz) {
+                tz = tz || ZONE.tz;
+                var fmt = makeFmt(tz);
+                if (!fmt || !fmt.formatToParts) return localParts(ms);
+                var arr = fmt.formatToParts(new Date(ms));
+                var o = {};
+                for (var i = 0; i < arr.length; i++) {
+                    if (arr[i].type !== 'literal') o[arr[i].type] = arr[i].value;
+                }
+                var h = parseInt(o.hour, 10) % 24;
+                var asUTC = Date.UTC(parseInt(o.year, 10), parseInt(o.month, 10) - 1,
+                    parseInt(o.day, 10), h, parseInt(o.minute, 10), parseInt(o.second, 10));
+                return {
+                    y: parseInt(o.year, 10),
+                    mo: parseInt(o.month, 10),
+                    d: parseInt(o.day, 10),
+                    h: h,
+                    mi: parseInt(o.minute, 10),
+                    s: parseInt(o.second, 10),
+                    wd: (o.weekday in WD) ? WD[o.weekday] : new Date(ms).getDay(),
+                    offMin: Math.round((asUTC - Math.floor(ms / 1000) * 1000) / 60000)
+                };
+            },
+
+            offsetLabel: function (ms, tz) {
+                var p = this.parts(ms || Date.now(), tz);
+                var sign = p.offMin >= 0 ? '+' : '−';
+                var abs = Math.abs(p.offMin);
+                var hh = Math.floor(abs / 60), mm = abs % 60;
+                return 'UTC' + sign + hh + (mm ? ':' + pad2(mm) : '');
+            },
+
+            clock: function (ms, tz) {
+                var p = this.parts(ms, tz);
+                return pad2(p.h) + ':' + pad2(p.mi) + ':' + pad2(p.s);
+            }
+        };
+    })();
+
+    /* =========================================================
+       4. Источник времени
+       ========================================================= */
+    var Time = {
+        offset: 0,          // серверное время - локальное время
+        manual: 0,          // поправка пользователя
+        synced: false,
+        lastSyncAt: 0,
+        serverName: '',
+        dateAnchor: Date.now(),
+        perfAnchor: perfNow(),
+
+        /* Локальное «сырое» время без учёта поправок.
+           Если системные часы скачнули во время сеанса — продолжаем
+           идти по монотонным часам, чтобы отсчёт не прыгал. */
+        raw: function () {
+            var byDate = Date.now();
+            var byPerf = this.dateAnchor + (perfNow() - this.perfAnchor);
+            var diff = byDate - byPerf;
+            if (Math.abs(diff) > 600000) {           // > 10 мин: это сон/гибернация
+                this.dateAnchor = byDate;
+                this.perfAnchor = perfNow();
+                return byDate;
+            }
+            return Math.abs(diff) > 3000 ? byPerf : byDate;
+        },
+
+        /* Итоговое время для отображения и расписания */
+        now: function () { return this.raw() + this.offset + this.manual; },
+
+        load: function () {
+            var saved = Store.get('timeOffset', null);
+            if (saved && isFinite(saved.offset)) {
+                this.offset = saved.offset;
+                this.lastSyncAt = saved.at || 0;
+                this.serverName = saved.server || '';
+                this.synced = !!saved.server;
+            }
+            this.manual = settings.manualOffset || 0;
+        },
+
+        save: function () {
+            Store.set('timeOffset', {
+                offset: this.offset,
+                at: this.lastSyncAt,
+                server: this.serverName
+            });
+        }
+    };
+
+    /* =========================================================
+       5. Синхронизация с сервером времени (необязательная)
+
+       Источники перебираются по порядку, первый ответивший побеждает.
+       Все проверены на доступность из России и на CORS (без него
+       браузер не отдаст ответ странице, открытой с диска).
+       Порядок: сначала нейтральные сервисы времени, потом крупные
+       биржи — они держат эталонное время и почти никогда не блокируются.
+       ========================================================= */
+    var Sync = {
+        busy: false,
+        timeout: 3500,
+
+        servers: [
+            {
+                name: 'timeapi.io',
+                url: 'https://timeapi.io/api/Time/current/zone?timeZone=UTC',
+                parse: function (text) {
+                    var d = JSON.parse(text);
+                    var s = String((d && d.dateTime) || '');
+                    if (!s) return NaN;
+                    if (!/(z|[+-]\d\d:?\d\d)$/i.test(s)) s += 'Z';
+                    return Date.parse(s);
+                }
+            },
+            {
+                name: '1.1.1.1 (Cloudflare)',
+                url: 'https://1.1.1.1/cdn-cgi/trace',
+                parse: function (text) {
+                    var m = /(?:^|\n)ts=([\d.]+)/.exec(text);
+                    return m ? Math.round(parseFloat(m[1]) * 1000) : NaN;
+                }
+            },
+            {
+                name: 'binance',
+                url: 'https://api.binance.com/api/v3/time',
+                parse: function (text) {
+                    return Number(JSON.parse(text).serverTime);
+                }
+            },
+            {
+                name: 'bybit',
+                url: 'https://api.bybit.com/v5/market/time',
+                parse: function (text) {
+                    var r = JSON.parse(text).result;
+                    if (r && r.timeNano) return Number(r.timeNano) / 1e6;
+                    if (r && r.timeSecond) return Number(r.timeSecond) * 1000;
+                    return NaN;
+                }
+            },
+            {
+                name: 'gate.io',
+                url: 'https://api.gateio.ws/api/v4/spot/time',
+                parse: function (text) {
+                    return Number(JSON.parse(text).server_time);
+                }
+            }
+        ],
+
+        /* Возвращает текст ответа: часть источников отдаёт не JSON. */
+        request: function (url, timeoutMs) {
+            return new Promise(function (resolve, reject) {
+                var xhr = new XMLHttpRequest();
+                xhr.open('GET', url, true);
+                xhr.timeout = timeoutMs;
+                xhr.setRequestHeader('Accept', '*/*');
+                xhr.onload = function () {
+                    if (xhr.status >= 200 && xhr.status < 300) resolve(xhr.responseText);
+                    else reject(new Error('http ' + xhr.status));
+                };
+                xhr.onerror = function () { reject(new Error('network')); };
+                xhr.ontimeout = function () { reject(new Error('timeout')); };
+                try { xhr.send(); } catch (e) { reject(e); }
+            });
+        },
+
+        run: function (silent) {
+            var self = this;
+            if (this.busy) return Promise.resolve(false);
+            if (navigator.onLine === false) {
+                this.setStatus('offline');
+                return Promise.resolve(false);
+            }
+            this.busy = true;
+            this.setStatus('syncing');
+
+            /* тот сервер, который сработал в прошлый раз, — пробуем первым */
+            var list = [];
+            var lastGood = null;
+            for (var i = 0; i < this.servers.length; i++) {
+                if (Time.serverName && this.servers[i].name === Time.serverName) {
+                    lastGood = this.servers[i];
+                } else {
+                    list.push(this.servers[i]);
+                }
+            }
+            if (lastGood) list.unshift(lastGood);
+
+            var idx = 0;
+
+            function tryNext() {
+                if (idx >= list.length) {
+                    self.busy = false;
+                    self.setStatus(Time.lastSyncAt ? 'stale' : 'local');
+                    return false;
+                }
+                var srv = list[idx++];
+                var t0 = Date.now();
+                var url = srv.url + (srv.url.indexOf('?') >= 0 ? '&' : '?') + '_=' + t0;
+                return self.request(url, self.timeout).then(function (text) {
+                    var t1 = Date.now();
+                    var serverMs = srv.parse(text);
+                    if (!isFinite(serverMs) || serverMs < 0) throw new Error('bad time');
+                    var rtt = t1 - t0;
+                    /* серверному времени соответствует середина запроса */
+                    Time.offset = serverMs - (t0 + rtt / 2);
+                    Time.lastSyncAt = Date.now();
+                    Time.serverName = srv.name;
+                    Time.synced = true;
+                    Time.save();
+                    self.busy = false;
+                    self.setStatus('synced');
+                    if (!silent) toast('Время синхронизировано · ' + srv.name);
+                    return true;
+                }).catch(function () {
+                    return tryNext();
+                });
+            }
+
+            return tryNext();
+        },
+
+        setStatus: function (state) {
+            var info = $('timeSourceInfo');
+            if (!info) return;
+            var zone = TZ.tzSupported(ZONE.tz)
+                ? (ZONE.city + ', ' + TZ.offsetLabel(Time.now()))
+                : 'время компьютера (браузер не знает часовых поясов)';
+            switch (state) {
+                case 'synced':
+                    var corr = (Time.offset + Time.manual) / 1000;
+                    var sign = corr > 0.05 ? '+' : (corr < -0.05 ? '−' : '±');
+                    var abs = Math.abs(corr);
+                    var shown = abs < 0.05 ? '0' : (abs < 10 ? abs.toFixed(1).replace('.', ',') : Math.round(abs));
+                    info.textContent = 'Синхронизировано: ' + Time.serverName +
+                        ' · поправка ' + sign + shown + ' с · ' + zone;
+                    break;
+                case 'syncing':
+                    info.textContent = 'Запрос к серверу времени…';
+                    break;
+                case 'offline':
+                    info.textContent = 'Интернета нет — используется время компьютера · ' + zone;
+                    break;
+                case 'stale':
+                    info.textContent = 'Сервер недоступен, сохранена прежняя поправка времени';
+                    break;
+                default:
+                    info.textContent = 'Часы компьютера (интернет не требуется) · ' + zone;
+            }
+        },
+
+        start: function () {
+            var self = this;
+            this.run(true);
+            setInterval(function () { self.run(true); }, 15 * 60000);
+            window.addEventListener('online', function () { self.run(true); });
+            window.addEventListener('offline', function () { self.setStatus('offline'); });
+        }
+    };
+
+    /* =========================================================
+       6. Звук (WebAudio, без файлов)
+       ========================================================= */
+    var Sound = {
+        ctx: null,
+
+        init: function () {
+            try {
+                if (!this.ctx) {
+                    var AC = window.AudioContext || window.webkitAudioContext;
+                    if (AC) this.ctx = new AC();
+                }
+                if (this.ctx && this.ctx.state === 'suspended' && this.ctx.resume) {
+                    this.ctx.resume();
+                }
+            } catch (e) { }
+            return this.ctx;
+        },
+
+        tone: function (freq, dur, delay, vol) {
+            var ctx = this.ctx;
+            if (!ctx) return;
+            try {
+                var t0 = ctx.currentTime + (delay || 0);
+                var osc = ctx.createOscillator();
+                var gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(freq, t0);
+                gain.gain.setValueAtTime(0.0001, t0);
+                gain.gain.exponentialRampToValueAtTime(vol || 0.25, t0 + 0.02);
+                gain.gain.exponentialRampToValueAtTime(0.0001, t0 + Math.max(0.08, dur));
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start(t0);
+                osc.stop(t0 + Math.max(0.1, dur) + 0.06);
+            } catch (e) { }
+        },
+
+        warn: function (mark) {
+            if (!settings.sound) return;
+            this.init();
+            if (!this.ctx) return;
+            if (mark === 60000) {                  /* последняя минута */
+                this.tone(880, 0.16, 0, 0.26);
+                this.tone(880, 0.16, 0.22, 0.26);
+                this.tone(1180, 0.3, 0.44, 0.26);
+            } else if (mark === 300000) {          /* 5 минут */
+                this.tone(700, 0.18, 0, 0.24);
+                this.tone(880, 0.18, 0.22, 0.24);
+            } else {                                /* 10 минут */
+                this.tone(600, 0.2, 0, 0.22);
+                this.tone(600, 0.2, 0.26, 0.22);
+            }
+        },
+
+        tick: function () {
+            if (!settings.sound) return;
+            this.init();
+            this.tone(1180, 0.06, 0, 0.14);
+        },
+
+        final: function () {
+            this.init();
+            if (!this.ctx) return;
+            for (var i = 0; i < 3; i++) {
+                var base = i * 0.62;
+                this.tone(880, 0.15, base, 0.3);
+                this.tone(880, 0.15, base + 0.18, 0.3);
+                this.tone(660, 0.4, base + 0.36, 0.3);
+            }
+        },
+
+        test: function () {
+            this.init();
+            if (!this.ctx) { toast('Браузер не поддерживает звук'); return; }
+            this.tone(880, 0.15, 0, 0.28);
+            this.tone(1180, 0.15, 0.2, 0.28);
+            this.tone(660, 0.3, 0.4, 0.28);
+            toast('Звук включён');
+        }
+    };
+
+    /* =========================================================
+       7. Вспомогательные UI-эффекты
+       ========================================================= */
+    var confettiTimer = null;
+    var confettiStopTimer = null;
+
+    function confetti(on) {
+        if (on) {
+            if (confettiTimer || REDUCED) return;
+            var colors = ['#4cc9f0', '#4361ee', '#7209b7', '#f72585', '#ffb142', '#37d67a'];
+            confettiTimer = setInterval(function () {
+                for (var i = 0; i < 4; i++) {
+                    var el = document.createElement('div');
+                    el.className = 'confetti';
+                    el.style.left = (Math.random() * 100) + 'vw';
+                    el.style.background = colors[(Math.random() * colors.length) | 0];
+                    var size = 5 + ((Math.random() * 8) | 0);
+                    el.style.width = size + 'px';
+                    el.style.height = (size * 1.3) + 'px';
+                    el.style.animationDuration = (Math.random() * 2 + 2.2).toFixed(2) + 's';
+                    document.body.appendChild(el);
+                    (function (node) {
+                        setTimeout(function () { if (node.parentNode) node.parentNode.removeChild(node); }, 5200);
+                    })(el);
+                }
+            }, 220);
+            if (confettiStopTimer) clearTimeout(confettiStopTimer);
+            confettiStopTimer = setTimeout(function () { confetti(false); }, 30000);
+        } else {
+            if (confettiTimer) { clearInterval(confettiTimer); confettiTimer = null; }
+            if (confettiStopTimer) { clearTimeout(confettiStopTimer); confettiStopTimer = null; }
+        }
+    }
+
+    var toastTimer = null;
+    function toast(msg) {
+        var old = document.querySelector('.toast');
+        if (old && old.parentNode) old.parentNode.removeChild(old);
+        var el = document.createElement('div');
+        el.className = 'toast';
+        el.textContent = msg;
+        document.body.appendChild(el);
+        if (toastTimer) clearTimeout(toastTimer);
+        toastTimer = setTimeout(function () {
+            if (el.parentNode) el.parentNode.removeChild(el);
+        }, 2600);
+    }
+
+    /* Короткий залп конфетти (пасхалка) */
+    function confettiBurst(count) {
+        if (REDUCED) return;
+        var colors = ['#4cc9f0', '#4361ee', '#7209b7', '#f72585', '#ffb142', '#37d67a'];
+        var total = count || 30;
+        for (var i = 0; i < total; i++) {
+            (function (n) {
+                setTimeout(function () {
+                    var el = document.createElement('div');
+                    el.className = 'confetti';
+                    el.style.left = (20 + Math.random() * 60) + 'vw';
+                    el.style.background = colors[(Math.random() * colors.length) | 0];
+                    var size = 5 + ((Math.random() * 8) | 0);
+                    el.style.width = size + 'px';
+                    el.style.height = (size * 1.3) + 'px';
+                    el.style.animationDuration = (2.2 + Math.random() * 1.6).toFixed(2) + 's';
+                    document.body.appendChild(el);
+                    setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 4600);
+                }, n * 18);
+            })(i);
+        }
+    }
+
+    /* Анимация высоты панели настроек */
+    function animatePanel(body, open, done) {
+        if (!body) return;
+        if (REDUCED) {
+            body.style.cssText = '';
+            body.classList.toggle('collapsed', !open);
+            if (done) done();
+            return;
+        }
+        clearTimeout(body._anim);
+        var wasClosed = body.classList.contains('collapsed');
+        var startH = wasClosed ? 0 : body.getBoundingClientRect().height;
+
+        body.classList.remove('collapsed');
+        var fullH = body.scrollHeight;
+
+        body.style.transition = 'none';
+        body.style.overflow = 'hidden';
+        body.style.height = startH + 'px';
+        void body.offsetHeight;
+
+        body.style.transition = 'height .34s cubic-bezier(.4, 0, .2, 1)';
+        body.style.height = (open ? fullH : 0) + 'px';
+
+        body._anim = setTimeout(function () {
+            body.style.transition = '';
+            body.style.height = '';
+            body.style.overflow = '';
+            body.classList.toggle('collapsed', !open);
+            if (done) done();
+        }, 356);
+    }
+
+    /* Своя плавная прокрутка: behavior:'smooth' поддерживается не везде */
+    function scrollWindowTo(target) {
+        var start = window.pageYOffset || document.documentElement.scrollTop || 0;
+        var delta = target - start;
+        if (Math.abs(delta) < 2) return;
+        if (REDUCED) { window.scrollTo(0, target); return; }
+
+        var duration = Math.min(480, Math.max(200, Math.abs(delta) * 0.7));
+        var t0 = Date.now();
+        (function step() {
+            var p = Math.min(1, (Date.now() - t0) / duration);
+            var eased = 1 - Math.pow(1 - p, 3);
+            window.scrollTo(0, Math.round(start + delta * eased));
+            if (p < 1) setTimeout(step, 16);
+        })();
+    }
+
+    /* Прокрутить страницу к панели настроек, когда её раскрыли */
+    function scrollToPanel() {
+        var head = $('panelHead');
+        var body = $('panelBody');
+        if (!head || !body) return;
+
+        var vh = window.innerHeight;
+        var bodyRect = body.getBoundingClientRect();
+        var headRect = head.getBoundingClientRect();
+
+        /* вся панель уже помещается на экране — не трогаем прокрутку */
+        if (bodyRect.top >= 0 && bodyRect.bottom <= vh - 4) return;
+        /* шапка панели уже в верхней трети экрана — тоже нечего делать */
+        if (headRect.top >= 0 && headRect.top < vh * 0.33) return;
+
+        var scrollTop = window.pageYOffset || document.documentElement.scrollTop || 0;
+        scrollWindowTo(Math.max(0, scrollTop + headRect.top - 10));
+    }
+
+    /* Смена карточек и раздела при переключении режима */
+    function swapCards() {
+        var cards = document.querySelector('.cards');
+        if (!cards || REDUCED) return;
+        cards.classList.remove('swap');
+        void cards.offsetWidth;
+        cards.classList.add('swap');
+        setTimeout(function () { cards.classList.remove('swap'); }, 620);
+    }
+
+    function flashSection(el) {
+        if (!el || REDUCED) return;
+        el.classList.remove('enter');
+        void el.offsetWidth;
+        el.classList.add('enter');
+        setTimeout(function () { el.classList.remove('enter'); }, 520);
+    }
+
+    /* =========================================================
+       7. Вспомогательные UI-эффекты
+       ========================================================= */
+    /* =========================================================
+       8. Отрисовка часов
+       ========================================================= */
+    var clockEls = {};
+    var segCache = { h: '', m: '', s: '' };
+    var titleBase = '';
+
+    function setDigit(el, ch) {
+        if (el.textContent === ch) return;
+        el.textContent = ch;
+        if (REDUCED || !el.animate) return;
+        try {
+            el.animate(
+                [{ transform: 'translateY(-.18em)', opacity: 0.25 }, { transform: 'none', opacity: 1 }],
+                { duration: 180, easing: 'ease-out' }
+            );
+        } catch (e) { }
+    }
+
+    function renderSeg(name, value) {
+        if (segCache[name] === value) return;
+        segCache[name] = value;
+        var seg = clockEls[name];
+        if (!seg) return;
+        var digits = seg.getElementsByClassName('digit');
+        for (var i = 0; i < digits.length && i < value.length; i++) {
+            setDigit(digits[i], value.charAt(i));
+        }
+    }
+
+    function renderClock(ms) {
+        var p = TZ.parts(ms);
+        renderSeg('h', pad2(p.h));
+        renderSeg('m', pad2(p.mi));
+        renderSeg('s', pad2(p.s));
+
+        $('currentDate').textContent = p.d + ' ' + MONTHS[p.mo - 1] + ' ' + p.y + ' года, ' + DAYS[p.wd];
+
+        if (settings.showMsk) {
+            $('mskClock').textContent = 'МСК ' + TZ.clock(ms, 'Europe/Moscow');
+            $('mskClock').classList.remove('hidden');
+        } else {
+            $('mskClock').classList.add('hidden');
+        }
+        return p;
+    }
+
+    /* =========================================================
+       9. Состояние
+       ========================================================= */
+    var State = {
+        mode: settings.mode === 'timer' ? 'timer' : 'schedule',
+        schedule: { start: 11 * 3600, end: 14 * 3600 },
+        timer: {
+            status: 'idle',          /* idle | running | paused | ended */
+            durationMs: settings.durationMs,
+            totalMs: 0,
+            startWall: 0,
+            endWall: 0,
+            endMono: 0,
+            pausedRemaining: 0
+        },
+        cues: { fired: {}, endedShown: false, wasActive: false, lastTickSec: -1 },
+        autoStart: false
+    };
+
+    function initState() {
+        var s = parseHM(settings.start);
+        var e = parseHM(settings.end);
+        State.schedule.start = (s === null) ? 11 * 3600 : s;
+        State.schedule.end = (e === null) ? 14 * 3600 : e;
+        if (State.schedule.end <= State.schedule.start) {
+            State.schedule.start = 11 * 3600;
+            State.schedule.end = 14 * 3600;
+        }
+        State.timer.durationMs = clamp(Number(settings.durationMs) || 45 * 60000, 60000, 86400000);
+    }
+
+    function resetCues() {
+        State.cues = { fired: {}, endedShown: false, wasActive: false, lastTickSec: -1 };
+    }
+
+    /* =========================================================
+       10. Логика расписания и таймера
+       ========================================================= */
+    function scheduleInfo(now) {
+        var p = TZ.parts(now);
+        var msOfDay = (p.h * 3600 + p.mi * 60 + p.s) * 1000 + (now % 1000);
+        var st = State.schedule.start * 1000;
+        var en = State.schedule.end * 1000;
+
+        if (msOfDay < st) {
+            return { phase: 'before', p: p, remaining: en - msOfDay, untilStart: st - msOfDay, over: 0, progress: 0, active: false };
+        }
+        if (msOfDay < en) {
+            return { phase: 'live', p: p, remaining: en - msOfDay, untilStart: 0, over: 0, progress: (msOfDay - st) / (en - st), active: true };
+        }
+        /* после окончания считаем, сколько уже идёт «в плюс» */
+        return { phase: 'ended', p: p, remaining: 0, untilStart: 0, over: msOfDay - en, progress: 1, active: false };
+    }
+
+    function timerRemaining() {
+        var t = State.timer;
+        if (t.status === 'running') {
+            var byWall = t.endWall - Date.now();
+            var byMono = t.endMono - perfNow();
+            /* берём меньшую оценку: сон компьютера и смена часов не растягивают отсчёт */
+            return Math.max(0, Math.min(byWall, byMono));
+        }
+        if (t.status === 'paused') return Math.max(0, t.pausedRemaining);
+        if (t.status === 'ended') return 0;
+        return t.durationMs;
+    }
+
+    function timerInfo(now) {
+        var t = State.timer;
+        var rem = timerRemaining();
+        var total = Math.max(1, t.totalMs || t.durationMs);
+        var progress = 0;
+        if (t.status !== 'idle') progress = clamp(1 - rem / total, 0, 1);
+        return {
+            phase: t.status === 'ended' ? 'ended' : (t.status === 'idle' ? 'before' : 'live'),
+            status: t.status,
+            p: TZ.parts(now),
+            remaining: rem,
+            untilStart: 0,
+            progress: progress,
+            active: t.status === 'running'
+        };
+    }
+
+    /* ---------- запуск / пауза / стоп ---------- */
+    function timerStart() {
+        var t = State.timer;
+        var dur = clamp(Number(t.durationMs) || 0, 0, 86400000);
+        if (dur < 60000) { toast('Укажите длительность не меньше 1 минуты'); return; }
+        Sound.init();
+        t.totalMs = dur;
+        t.startWall = Date.now();
+        t.endWall = t.startWall + dur;
+        t.endMono = perfNow() + dur;
+        t.pausedRemaining = 0;
+        t.status = 'running';
+        resetCues();
+        confetti(false);
+        saveTimerState();
+        render();
+    }
+
+    function timerPauseToggle() {
+        var t = State.timer;
+        if (t.status === 'running') {
+            t.pausedRemaining = timerRemaining();
+            t.status = 'paused';
+        } else if (t.status === 'paused') {
+            t.endWall = Date.now() + t.pausedRemaining;
+            t.endMono = perfNow() + t.pausedRemaining;
+            t.status = 'running';
+        } else {
+            return;
+        }
+        saveTimerState();
+        render();
+    }
+
+    function timerStop() {
+        var t = State.timer;
+        t.status = 'idle';
+        t.pausedRemaining = 0;
+        t.startWall = 0;
+        t.endWall = 0;
+        t.endMono = 0;
+        resetCues();
+        confetti(false);
+        saveTimerState();
+        render();
+    }
+
+    function timerAdd(ms) {
+        var t = State.timer;
+        if (t.status === 'running') {
+            t.endWall += ms;
+            t.endMono += ms;
+            t.totalMs = Math.max(60000, t.totalMs + ms);
+        } else if (t.status === 'paused') {
+            t.pausedRemaining = Math.max(0, t.pausedRemaining + ms);
+            t.totalMs = Math.max(60000, t.totalMs + ms);
+        } else {
+            return;
+        }
+        resetCues();
+        saveTimerState();
+        render();
+        toast((ms > 0 ? 'Добавлено ' : 'Убрано ') + Math.abs(ms / 60000) + ' мин');
+    }
+
+    function saveTimerState() {
+        var t = State.timer;
+        Store.set('timerState', {
+            status: t.status,
+            durationMs: t.durationMs,
+            totalMs: t.totalMs,
+            startWall: t.startWall,
+            endWall: t.endWall,
+            pausedRemaining: t.pausedRemaining
+        });
+    }
+
+    function restoreTimer() {
+        var saved = Store.get('timerState', null);
+        if (!saved) return;
+        var t = State.timer;
+        t.durationMs = Number(saved.durationMs) || settings.durationMs;
+        t.totalMs = Number(saved.totalMs) || t.durationMs;
+
+        if (saved.status === 'running' && isFinite(saved.endWall)) {
+            var rem = saved.endWall - Date.now();
+            t.startWall = Number(saved.startWall) || (saved.endWall - t.totalMs);
+            t.endWall = saved.endWall;
+            if (rem > 1500) {
+                t.status = 'running';
+                t.endMono = perfNow() + rem;
+                State.savedTimerNotice = true;
+            } else {
+                t.status = 'ended';
+                t.endMono = perfNow();
+            }
+        } else if (saved.status === 'paused' && saved.pausedRemaining > 0) {
+            t.status = 'paused';
+            t.pausedRemaining = saved.pausedRemaining;
+            t.startWall = Number(saved.startWall) || 0;
+            t.endWall = Number(saved.endWall) || 0;
+        } else {
+            t.status = 'idle';
+        }
+    }
+
+    /* =========================================================
+       11. Отрисовка
+       ========================================================= */
+    /* Подгоняем «ВРЕМЯ ВЫШЛО» под ширину карточки (вместо CSS-контейнерных единиц,
+       которые старые браузеры не понимают). */
+    function fitEndedLabel() {
+        var lab = $('remainingLabel');
+        if (!lab) return;
+        var card = lab.parentNode;
+        if (!card || !card.classList.contains('over')) {
+            lab.style.fontSize = '';
+            lab.setAttribute('data-fitted', '');
+            return;
+        }
+        var avail = lab.clientWidth;
+        if (!avail) return;
+
+        /* измеряем текст при эталонных 100 px и считаем нужный размер */
+        lab.style.fontSize = '100px';
+        var textW = lab.scrollWidth;
+        lab.style.fontSize = '';
+
+        var size = textW > 0 ? Math.floor(100 * avail * 0.7 / textW) : 22;
+        size = Math.max(12, Math.min(size, 26));
+        lab.style.fontSize = size + 'px';
+        lab.setAttribute('data-fitted', '1');
+    }
+
+    function setRemainingCard(label, value, over) {
+        var val = $('displayRemaining');
+        var lab = $('remainingLabel');
+        var card = val.parentNode;
+        var wasOver = card.classList.contains('over');
+
+        if (lab.textContent !== label) lab.textContent = label;
+        if (val.textContent !== value) val.textContent = value;
+        if (wasOver !== !!over) card.classList.toggle('over', !!over);
+
+        if (over && (!wasOver || !lab.getAttribute('data-fitted'))) fitEndedLabel();
+        else if (!over && wasOver) fitEndedLabel();
+    }
+
+    function renderScheduleCards(info) {
+        $('displayStart').textContent = fmtHMfromSec(State.schedule.start);
+        $('displayEnd').textContent = fmtHMfromSec(State.schedule.end);
+
+        if (info.phase === 'before') {
+            setRemainingCard('До начала', fmtHMS(info.untilStart), false);
+        } else if (info.phase === 'live') {
+            setRemainingCard('Осталось', fmtHMS(info.remaining), false);
+        } else {
+            /* время окончания видно в соседней карточке — здесь считаем «в плюс» */
+            setRemainingCard('ВРЕМЯ ВЫШЛО', '+' + fmtHMS(info.over), true);
+        }
+    }
+
+    /* Метка времени в «сырых» локальных мс -> то, что показывают большие часы */
+    function dispMs(wallMs) {
+        return wallMs + Time.offset + Time.manual;
+    }
+
+    function renderTimerCards(info) {
+        var t = State.timer;
+        var showTimes = (t.status !== 'idle');
+        var startMs = 0, endMs = 0;
+
+        if (showTimes) {
+            if (t.status === 'paused') {
+                endMs = Date.now() + Math.max(0, t.pausedRemaining);
+                startMs = endMs - (t.totalMs || t.durationMs);
+            } else {
+                startMs = t.startWall || (t.endWall - (t.totalMs || t.durationMs));
+                endMs = t.endWall;
+            }
+        }
+        $('displayStart').textContent = showTimes ? TZ.clock(dispMs(startMs)) : '--:--';
+        $('displayEnd').textContent = showTimes ? TZ.clock(dispMs(endMs)) : '--:--';
+
+        if (t.status === 'idle') {
+            setRemainingCard('Длительность', fmtHMS(t.durationMs), false);
+        } else if (t.status === 'ended') {
+            /* сколько прошло после окончания — тикает дальше в плюс */
+            var over = (t.endWall > 0) ? Math.max(0, Date.now() - t.endWall) : 0;
+            setRemainingCard('ВРЕМЯ ВЫШЛО', '+' + fmtHMS(over), true);
+        } else if (t.status === 'paused') {
+            setRemainingCard('Пауза · осталось', fmtHMS(t.pausedRemaining), false);
+        } else {
+            setRemainingCard('Осталось', fmtHMS(info.remaining), false);
+        }
+    }
+
+    function updateProgress(v) {
+        $('progressFill').style.width = (clamp(v, 0, 1) * 100).toFixed(2) + '%';
+    }
+
+    function updateVisualState(info) {
+        var ended;
+        if (State.mode === 'schedule') ended = (info.phase === 'ended');
+        else ended = (State.timer.status === 'ended');
+
+        var warn = !ended && info.active && info.remaining > 0 && info.remaining <= 300000;
+        document.body.classList.toggle('warn', warn);
+        document.body.classList.toggle('ended', ended);
+    }
+
+    function updateTimerButtons() {
+        var st = State.timer.status;
+        $('btnStart').disabled = (st === 'running' || st === 'paused');
+        $('btnPause').disabled = (st !== 'running' && st !== 'paused');
+        var pauseLabel = st === 'paused' ? '▶ Продолжить' : '⏸ Пауза';
+        if ($('btnPause').textContent !== pauseLabel) $('btnPause').textContent = pauseLabel;
+        $('btnStop').disabled = (st === 'idle');
+        $('btnAdd1').disabled = (st !== 'running' && st !== 'paused');
+        $('btnAdd5').disabled = (st !== 'running' && st !== 'paused');
+    }
+
+    function updateDocumentTitle(info) {
+        var base = titleBase || 'Часы';
+        var text = base;
+        if (State.mode === 'schedule' && info.active) text = '(' + fmtHMS(info.remaining) + ') ' + base;
+        else if (State.mode === 'timer' && State.timer.status === 'running') text = '(' + fmtHMS(info.remaining) + ') ' + base;
+        else if (State.mode === 'timer' && State.timer.status === 'paused') text = '(пауза) ' + base;
+        if (document.title !== text) document.title = text;
+    }
+
+    function handleCues(info) {
+        var rem = info.remaining;
+
+        if (info.active && rem > 0) {
+            State.cues.wasActive = true;
+            var marks = [600000, 300000, 60000];
+            for (var i = 0; i < marks.length; i++) {
+                var m = marks[i];
+                if (rem <= m && rem > m - 2000 && !State.cues.fired[m]) {
+                    State.cues.fired[m] = true;
+                    if (settings.warn) Sound.warn(m);
+                }
+            }
+            if (rem <= 10000) {
+                var sec = Math.ceil(rem / 1000);
+                if (sec !== State.cues.lastTickSec) {
+                    State.cues.lastTickSec = sec;
+                    Sound.tick();
+                }
+            }
+            return;
+        }
+
+        if (State.cues.wasActive && !State.cues.endedShown && rem <= 0) {
+            State.cues.endedShown = true;
+            Sound.final();
+            confetti(true);
+        }
+    }
+
+    function render() {
+        var now = Time.now();
+
+        /* таймер дошёл до нуля — переводим в состояние «время вышло» */
+        if (State.mode === 'timer' && State.timer.status === 'running' && timerRemaining() <= 0) {
+            State.timer.status = 'ended';
+            saveTimerState();
+        }
+
+        renderClock(now);
+
+        var info = (State.mode === 'schedule') ? scheduleInfo(now) : timerInfo(now);
+
+        if (State.mode === 'schedule') renderScheduleCards(info);
+        else renderTimerCards(info);
+
+        updateProgress(info.progress);
+        updateVisualState(info);
+        updateTimerButtons();
+        updateDocumentTitle(info);
+        handleCues(info);
+    }
+
+    /* =========================================================
+       12. Интерфейс
+       ========================================================= */
+
+    function applyTexts() {
+        $('eventTitle').textContent = settings.title;
+        $('eventLocation').textContent = settings.location;
+        titleBase = settings.title + ' — ' + ZONE.city;
+        $('pageTitle').textContent = titleBase;
+    }
+
+    function makeEditable(el, maxLen, onSave) {
+        el.addEventListener('click', function () {
+            if (el.getAttribute('data-editing') === '1') return;
+            el.setAttribute('data-editing', '1');
+
+            var oldText = el.textContent;
+            var input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'inline-input';
+            input.value = oldText;
+            input.maxLength = maxLen;
+            input.setAttribute('aria-label', 'Редактирование текста');
+
+            el.textContent = '';
+            el.appendChild(input);
+            input.focus();
+            input.select();
+
+            var done = false;
+            function finish(save) {
+                if (done) return;
+                done = true;
+                el.removeAttribute('data-editing');
+                var v = save ? String(input.value || '').trim() : oldText;
+                if (!v) v = oldText;
+                el.textContent = v;
+                onSave(v);
+            }
+
+            input.addEventListener('keydown', function (ev) {
+                if (ev.key === 'Enter') { ev.preventDefault(); finish(true); }
+                else if (ev.key === 'Escape') { ev.preventDefault(); finish(false); }
+                ev.stopPropagation();
+            });
+            input.addEventListener('blur', function () { finish(true); });
+        });
+    }
+
+    function setMode(mode, silent) {
+        State.mode = (mode === 'timer') ? 'timer' : 'schedule';
+        settings.mode = State.mode;
+        saveSettings();
+
+        $('modeSchedule').classList.toggle('active', State.mode === 'schedule');
+        $('modeTimer').classList.toggle('active', State.mode === 'timer');
+        $('modeSchedule').setAttribute('aria-selected', State.mode === 'schedule' ? 'true' : 'false');
+        $('modeTimer').setAttribute('aria-selected', State.mode === 'timer' ? 'true' : 'false');
+        $('scheduleSection').classList.toggle('hidden', State.mode !== 'schedule');
+        $('timerSection').classList.toggle('hidden', State.mode !== 'timer');
+
+        render();
+
+        if (!silent) {
+            swapCards();
+            flashSection(State.mode === 'schedule' ? $('scheduleSection') : $('timerSection'));
+            if (settings.panelOpen) animatePanel($('panelBody'), true);
+        }
+    }
+
+    function applyTheme() {
+        document.documentElement.setAttribute('data-theme', settings.theme === 'light' ? 'light' : 'dark');
+        $('themeDark').classList.toggle('active', settings.theme !== 'light');
+        $('themeLight').classList.toggle('active', settings.theme === 'light');
+    }
+
+    function applyScale() {
+        document.documentElement.style.setProperty('--scale', String(settings.scale));
+        /* на телефоне ограничиваем рост, чтобы ничего не вылезло за экран;
+           считаем здесь, а не в CSS через min() — так работает и в старых браузерах */
+        document.documentElement.style.setProperty('--mscale', String(Math.min(settings.scale, 1.15)));
+        $('scaleValue').textContent = Math.round(settings.scale * 100) + '%';
+    }
+
+    function changeScale(delta) {
+        settings.scale = clamp(Math.round((settings.scale + delta) * 100) / 100, 0.6, 2);
+        saveSettings();
+        applyScale();
+    }
+
+    function applySeconds() {
+        document.body.classList.toggle('no-seconds', !settings.showSeconds);
+        $('optSeconds').checked = !!settings.showSeconds;
+    }
+
+    function updateCorrValue() {
+        var total = Math.round(settings.manualOffset / 1000);
+        var sign = total > 0 ? '+' : (total < 0 ? '−' : '');
+        var abs = Math.abs(total);
+        var text;
+        if (abs < 60) text = abs + ' с';
+        else if (abs % 60 === 0) text = (abs / 60) + ' мин';
+        else text = Math.floor(abs / 60) + ' мин ' + (abs % 60) + ' с';
+        $('corrValue').textContent = sign + text;
+        $('corrValue').title = 'Поправка часов: ' + sign + text;
+    }
+
+    function changeCorrection(deltaMs) {
+        settings.manualOffset = clamp(settings.manualOffset + deltaMs, -3600000, 3600000);
+        Time.manual = settings.manualOffset;
+        saveSettings();
+        updateCorrValue();
+        resetCues();
+        render();
+    }
+
+    function setPanel(open, silent) {
+        settings.panelOpen = !!open;
+        if (!silent) saveSettings();
+        document.body.classList.toggle('panel-collapsed', !open);
+        $('panelToggleText').textContent = open ? 'свернуть' : 'развернуть';
+        $('panelHead').setAttribute('aria-expanded', open ? 'true' : 'false');
+
+        var body = $('panelBody');
+        if (silent) {
+            body.style.cssText = '';
+            body.classList.toggle('collapsed', !open);
+        } else {
+            animatePanel(body, open, function () {
+                if (open) scrollToPanel();
+            });
+        }
+    }
+
+    function toggleFullscreen() {
+        var el = document.documentElement;
+        var doc = document;
+        var isFs = doc.fullscreenElement || doc.webkitFullscreenElement;
+        try {
+            if (!isFs) {
+                var req = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+                if (req) req.call(el);
+            } else {
+                var exit = doc.exitFullscreen || doc.webkitExitFullscreen || doc.msExitFullscreen;
+                if (exit) exit.call(doc);
+            }
+        } catch (e) {
+            toast('Полноэкранный режим недоступен');
+        }
+    }
+
+    /* ---------- «не гасить экран» ---------- */
+    var wakeLock = null;
+    function requestWakeLock() {
+        if (!settings.wake || !('wakeLock' in navigator)) return;
+        try {
+            navigator.wakeLock.request('screen').then(function (lock) {
+                wakeLock = lock;
+                lock.addEventListener('release', function () { wakeLock = null; });
+            }).catch(function () { });
+        } catch (e) { }
+    }
+    function releaseWakeLock() {
+        if (wakeLock) { try { wakeLock.release(); } catch (e) { } wakeLock = null; }
+    }
+
+    /* ---------- параметры в адресной строке ----------
+       Пример: Часы.html?mode=timer&dur=90&title=Математика&auto=1  */
+    function applyUrlParams() {
+        var params = {};
+        try {
+            if (typeof URLSearchParams === 'undefined') return;
+            var sp = new URLSearchParams(location.search);
+            sp.forEach(function (v, k) { params[k] = v; });
+            if (location.hash && location.hash.length > 2) {
+                var hp = new URLSearchParams(location.hash.replace(/^#/, ''));
+                hp.forEach(function (v, k) { if (!(k in params)) params[k] = v; });
+            }
+        } catch (e) { return; }
+
+        if (params.title) settings.title = params.title.slice(0, 60);
+        if (params.location) settings.location = params.location.slice(0, 40);
+        if (params.start && parseHM(params.start) !== null) settings.start = params.start;
+        if (params.end && parseHM(params.end) !== null) settings.end = params.end;
+        if (params.mode === 'timer' || params.mode === 'schedule') settings.mode = params.mode;
+        if (params.dur) {
+            var d = parseInt(params.dur, 10);
+            if (d > 0 && d <= 1440) settings.durationMs = d * 60000;
+        }
+        if (params.theme === 'light' || params.theme === 'dark') settings.theme = params.theme;
+        if (params.sec === '0' || params.sec === '1') settings.showSeconds = (params.sec === '1');
+        if (params.scale) {
+            var sc = parseFloat(params.scale);
+            if (sc >= 0.6 && sc <= 2) settings.scale = sc;
+        }
+        saveSettings();
+        if (params.auto === '1') State.autoStart = true;
+    }
+
+    /* =========================================================
+       13. Инициализация
+       ========================================================= */
+    function init() {
+        clockEls.h = document.querySelector('.clock .seg.h');
+        clockEls.m = document.querySelector('.clock .seg.m');
+        clockEls.s = document.querySelector('.clock .seg.s');
+
+        applyUrlParams();
+        initState();
+        restoreTimer();
+        Time.load();
+        Time.manual = settings.manualOffset || 0;
+
+        applyTexts();
+        applyTheme();
+        applyScale();
+        applySeconds();
+        setMode(settings.mode, true);
+        setPanel(settings.panelOpen !== false, true);
+        updateCorrValue();
+
+        /* поля ввода */
+        $('startTime').value = fmtHMfromSec(State.schedule.start);
+        $('endTime').value = fmtHMfromSec(State.schedule.end);
+
+        var durMin = Math.round(State.timer.durationMs / 60000);
+        $('durH').value = Math.floor(durMin / 60);
+        $('durM').value = durMin % 60;
+
+        $('optMsk').checked = !!settings.showMsk;
+        $('optSound').checked = !!settings.sound;
+        $('optWarn').checked = !!settings.warn;
+        $('optWake').checked = !!settings.wake;
+
+        updateScheduleHint();
+        render();
+
+        /* --- заголовок и место --- */
+        makeEditable($('eventTitle'), 60, function (v) {
+            settings.title = v;
+            saveSettings();
+            titleBase = v + ' — ' + ZONE.city;
+            $('pageTitle').textContent = titleBase;
+            toast('Название сохранено');
+        });
+        makeEditable($('eventLocation'), 40, function (v) {
+            settings.location = v;
+            saveSettings();
+            toast('Место сохранено');
+        });
+
+        /* --- режимы --- */
+        $('modeSchedule').addEventListener('click', function () { setMode('schedule'); });
+        $('modeTimer').addEventListener('click', function () { setMode('timer'); });
+
+        /* --- панель --- */
+        $('panelHead').addEventListener('click', function () { setPanel(!settings.panelOpen); });
+        $('panelHead').addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setPanel(!settings.panelOpen); }
+        });
+
+        /* --- расписание --- */
+        $('startTime').addEventListener('input', onScheduleInput);
+        $('endTime').addEventListener('input', onScheduleInput);
+        $('startTime').addEventListener('change', onScheduleInput);
+        $('endTime').addEventListener('change', onScheduleInput);
+
+        each(document.querySelectorAll('#schedulePresets .chip'), function (chip) {
+            chip.addEventListener('click', function () {
+                /* приводим к формату hh:mm: input[type=time] не принимает «8:00» */
+                var s = parseHM(chip.getAttribute('data-start'));
+                var e = parseHM(chip.getAttribute('data-end'));
+                if (s === null || e === null) return;
+                $('startTime').value = fmtHMfromSec(s);
+                $('endTime').value = fmtHMfromSec(e);
+                onScheduleInput();
+            });
+        });
+
+        /* --- таймер --- */
+        $('durH').addEventListener('input', readDuration);
+        $('durM').addEventListener('input', readDuration);
+        $('durH').addEventListener('change', normalizeDurationInputs);
+        $('durM').addEventListener('change', normalizeDurationInputs);
+        $('durH').addEventListener('blur', normalizeDurationInputs);
+        $('durM').addEventListener('blur', normalizeDurationInputs);
+
+        each(document.querySelectorAll('#durationPresets .chip'), function (chip) {
+            chip.addEventListener('click', function () {
+                var mins = parseInt(chip.getAttribute('data-min'), 10) || 45;
+                State.timer.durationMs = mins * 60000;
+                settings.durationMs = State.timer.durationMs;
+                saveSettings();
+                $('durH').value = Math.floor(mins / 60);
+                $('durM').value = mins % 60;
+                if (State.timer.status !== 'idle') {
+                    toast('Новая длительность применится после «Стоп»');
+                }
+                render();
+            });
+        });
+
+        $('btnStart').addEventListener('click', timerStart);
+        $('btnPause').addEventListener('click', timerPauseToggle);
+        $('btnStop').addEventListener('click', timerStop);
+        $('btnAdd1').addEventListener('click', function () { timerAdd(60000); });
+        $('btnAdd5').addEventListener('click', function () { timerAdd(300000); });
+
+        /* --- переключатели --- */
+        $('optSeconds').addEventListener('change', function () {
+            settings.showSeconds = this.checked;
+            saveSettings();
+            applySeconds();
+            render();
+        });
+        $('optMsk').addEventListener('change', function () {
+            settings.showMsk = this.checked;
+            saveSettings();
+            render();
+        });
+        $('optSound').addEventListener('change', function () {
+            settings.sound = this.checked;
+            saveSettings();
+            if (this.checked) Sound.test();
+        });
+        $('optWarn').addEventListener('change', function () {
+            settings.warn = this.checked;
+            saveSettings();
+        });
+        $('optWake').addEventListener('change', function () {
+            settings.wake = this.checked;
+            saveSettings();
+            if (this.checked) requestWakeLock(); else releaseWakeLock();
+        });
+
+        /* --- масштаб, тема, экран --- */
+        $('scaleDown').addEventListener('click', function () { changeScale(-0.05); });
+        $('scaleUp').addEventListener('click', function () { changeScale(0.05); });
+        $('scaleValue').addEventListener('click', function () {
+            settings.scale = 1;
+            saveSettings();
+            applyScale();
+        });
+        $('themeDark').addEventListener('click', function () {
+            settings.theme = 'dark'; saveSettings(); applyTheme();
+        });
+        $('themeLight').addEventListener('click', function () {
+            settings.theme = 'light'; saveSettings(); applyTheme();
+        });
+        $('btnFullscreen').addEventListener('click', toggleFullscreen);
+        $('btnTestSound').addEventListener('click', function () { Sound.test(); });
+
+        /* --- время --- */
+        $('btnSync').addEventListener('click', function () {
+            if (navigator.onLine === false) {
+                Sync.setStatus('offline');
+                toast('Интернета нет — используется время компьютера');
+                return;
+            }
+            Sync.run(false);
+        });
+        $('corrMinus').addEventListener('click', function () { changeCorrection(-30000); });
+        $('corrPlus').addEventListener('click', function () { changeCorrection(30000); });
+        $('corrReset').addEventListener('click', function () {
+            settings.manualOffset = 0;
+            Time.manual = 0;
+            saveSettings();
+            updateCorrValue();
+            render();
+            toast('Поправка сброшена');
+        });
+        $('btnReset').addEventListener('click', function () {
+            if (!confirm('Сбросить все настройки: название, время, тему, масштаб?')) return;
+            Store.del('settings');
+            Store.del('timerState');
+            Store.del('timeOffset');
+            location.reload();
+        });
+
+        /* --- логотип-пасхалка --- */
+        var logo = $('logo');
+        if (logo) {
+            logo.addEventListener('click', function () {
+                logo.classList.remove('spin');
+                void logo.offsetWidth;
+                logo.classList.add('spin');
+                setTimeout(function () { logo.classList.remove('spin'); }, 760);
+                confettiBurst(34);
+                toast('Пасхалка найдена 😉');
+            });
+        }
+
+        /* --- разблокировка звука первым действием --- */
+        var unlock = function () {
+            Sound.init();
+            document.removeEventListener('pointerdown', unlock, true);
+            document.removeEventListener('keydown', unlock, true);
+            document.removeEventListener('touchstart', unlock, true);
+        };
+        document.addEventListener('pointerdown', unlock, true);
+        document.addEventListener('keydown', unlock, true);
+        document.addEventListener('touchstart', unlock, true);
+
+        /* --- горячие клавиши --- */
+        document.addEventListener('keydown', function (e) {
+            var tag = (e.target && e.target.tagName) ? e.target.tagName.toUpperCase() : '';
+            var typing = (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT');
+            if (typing) {
+                if (e.key === 'Escape') e.target.blur();
+                return;
+            }
+            if (e.key === 'Escape') { return; }
+
+            switch (e.code) {
+                case 'KeyF':
+                    toggleFullscreen();
+                    e.preventDefault();
+                    break;
+                case 'KeyH':
+                    setPanel(!settings.panelOpen);
+                    e.preventDefault();
+                    break;
+                case 'KeyR':
+                    if (State.mode === 'timer') timerStop();
+                    else { resetCues(); confetti(false); render(); }
+                    e.preventDefault();
+                    break;
+                case 'Space':
+                    e.preventDefault();
+                    if (State.mode === 'timer') {
+                        if (State.timer.status === 'running' || State.timer.status === 'paused') timerPauseToggle();
+                        else timerStart();
+                    } else {
+                        toast('Пробел работает в режиме «Таймер»');
+                    }
+                    break;
+                case 'Equal':
+                case 'NumpadAdd':
+                    changeScale(0.05);
+                    e.preventDefault();
+                    break;
+                case 'Minus':
+                case 'NumpadSubtract':
+                    changeScale(-0.05);
+                    e.preventDefault();
+                    break;
+                case 'Digit0':
+                case 'Numpad0':
+                    settings.scale = 1;
+                    saveSettings();
+                    applyScale();
+                    break;
+            }
+        });
+
+        /* --- защита от случайного закрытия --- */
+        window.addEventListener('beforeunload', function (e) {
+            if (State.timer.status === 'running') {
+                e.preventDefault();
+                e.returnValue = '';
+                return '';
+            }
+        });
+
+        document.addEventListener('visibilitychange', function () {
+            if (document.visibilityState === 'visible') {
+                render();
+                if (settings.wake) requestWakeLock();
+            }
+        });
+        window.addEventListener('online', function () { Sync.run(true); });
+        window.addEventListener('offline', function () { Sync.setStatus('offline'); });
+
+        /* пересчитать надпись «ВРЕМЯ ВЫШЛО» при изменении окна */
+        window.addEventListener('resize', function () {
+            var lab = $('remainingLabel');
+            if (lab && lab.parentNode.classList.contains('over')) {
+                lab.removeAttribute('data-fitted');
+                fitEndedLabel();
+            }
+        });
+
+        /* --- автостарт из ссылки --- */
+        if (State.autoStart && State.mode === 'timer') {
+            setTimeout(function () {
+                if (State.timer.status === 'idle') timerStart();
+            }, 300);
+        }
+        if (State.savedTimerNotice) {
+            setTimeout(function () { toast('Таймер продолжается после перезагрузки'); }, 700);
+        }
+
+        Sync.start();
+        requestWakeLock();
+
+        /* --- цикл, выровненный по границе секунды --- */
+        function loop() {
+            render();
+            var now = Date.now();
+            setTimeout(loop, 1000 - (now % 1000) + 8);
+        }
+        setTimeout(loop, 1000 - (Date.now() % 1000) + 8);
+    }
+
+    /* ---------- вспомогательные обработчики ввода ---------- */
+    function each(list, fn) {
+        for (var i = 0; i < list.length; i++) fn(list[i], i);
+    }
+
+    function onScheduleInput() {
+        var st = $('startTime').value;
+        var en = $('endTime').value;
+        var s = parseHM(st);
+        var e = parseHM(en);
+
+        var ok = (s !== null && e !== null && e > s);
+        $('scheduleError').classList.toggle('hidden', (s === null || e === null) || ok);
+        if (!ok) return;
+
+        if (State.schedule.start !== s || State.schedule.end !== e) {
+            State.schedule.start = s;
+            State.schedule.end = e;
+            settings.start = st;
+            settings.end = en;
+            saveSettings();
+            resetCues();
+        }
+        updateScheduleHint();
+        render();
+    }
+
+    function updateScheduleHint() {
+        var diff = State.schedule.end - State.schedule.start;
+        if (diff <= 0) diff = 0;
+        var h = Math.floor(diff / 3600);
+        var m = Math.floor((diff % 3600) / 60);
+        var text = 'Длительность: ' + (h ? h + ' ч ' : '') + pad2(m) + ' мин';
+        text += ' · окончание в ' + fmtHMfromSec(State.schedule.end);
+        $('scheduleHint').textContent = text;
+    }
+
+    function readDuration() {
+        var h = parseInt($('durH').value, 10);
+        var m = parseInt($('durM').value, 10);
+        if (isNaN(h)) h = 0;
+        if (isNaN(m)) m = 0;
+        h = clamp(h, 0, 23);
+        m = clamp(m, 0, 59);
+        State.timer.durationMs = (h * 60 + m) * 60000;
+        settings.durationMs = State.timer.durationMs;
+        saveSettings();
+        if (State.timer.status === 'idle') render();
+    }
+
+    function normalizeDurationInputs() {
+        var h = clamp(parseInt($('durH').value, 10) || 0, 0, 23);
+        var m = clamp(parseInt($('durM').value, 10) || 0, 0, 59);
+        $('durH').value = h;
+        $('durM').value = m;
+        State.timer.durationMs = (h * 60 + m) * 60000;
+        settings.durationMs = State.timer.durationMs;
+        saveSettings();
+        if (State.timer.status === 'idle') render();
+    }
+
+    /* =========================================================
+       14. Поехали
+       ========================================================= */
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+})();
+</script>
+</body>
+</html>
