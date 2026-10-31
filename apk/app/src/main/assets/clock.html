@@ -320,6 +320,21 @@ input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 .hint { font-size: .82rem; color: var(--muted); line-height: 1.35; }
 .hint.err { color: var(--danger); }
 
+.audio-bar {
+    height: 4px;
+    margin-top: 10px;
+    border-radius: 2px;
+    background: rgba(128, 140, 160, .25);
+    overflow: hidden;
+}
+.audio-bar i {
+    display: block;
+    height: 100%;
+    width: 0;
+    background: var(--accent);
+    transition: width .18s linear;
+}
+
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip {
     background: var(--card2);
@@ -365,6 +380,7 @@ input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 .btn[disabled] { opacity: .4; cursor: not-allowed; transform: none; border-color: var(--line); }
 
 .switches { display: grid; grid-template-columns: repeat(auto-fit, minmax(215px, 1fr)); gap: 4px 14px; }
+.switches.one { grid-template-columns: minmax(215px, 300px); }
 .switch {
     display: flex;
     align-items: center;
@@ -819,6 +835,27 @@ body:not(.panel-collapsed) .chevron { transform: rotate(180deg); }
                 </div>
             </div>
 
+            <!-- АУДИО -->
+            <div class="panel-section">
+                <div class="section-title">Аудиозапись для старта</div>
+                <div class="switches one">
+                    <label class="switch"><span>Играть при старте</span><input type="checkbox" id="optAudioStart"></label>
+                </div>
+                <div class="row">
+                    <div class="field grow">
+                        <span class="flabel">Файл</span>
+                        <div class="chips">
+                            <button type="button" class="chip" id="audioPick">📂 Выбрать файл</button>
+                            <button type="button" class="chip" id="audioPlay" disabled>▶ Проверить</button>
+                            <button type="button" class="chip" id="audioStop" disabled>⏹ Стоп</button>
+                        </div>
+                        <div class="hint" id="audioHint">Не выбран · файл остаётся на компьютере</div>
+                    </div>
+                </div>
+                <div class="audio-bar" id="audioBar" hidden><i id="audioBarFill"></i></div>
+                <input type="file" id="audioFile" accept="audio/*,.mp3,.wav,.ogg,.m4a,.aac,.flac" hidden>
+            </div>
+
             <!-- ВРЕМЯ -->
             <div class="panel-section">
                 <div class="section-title">Время и синхронизация</div>
@@ -946,7 +983,9 @@ body:not(.panel-collapsed) .chevron { transform: rotate(180deg); }
         theme: 'dark',
         scale: 1,
         manualOffset: 0,
-        panelOpen: true
+        panelOpen: true,
+        audioStart: false,
+        audioName: ''
     };
 
     var settings = {};
@@ -1378,6 +1417,176 @@ body:not(.panel-collapsed) .chevron { transform: rotate(180deg); }
     };
 
     /* =========================================================
+       6б. Аудиозапись для старта (аудирование по иностранным языкам)
+       Файл остаётся на компьютере: берём его через <input type="file">,
+       держим в IndexedDB, чтобы пережить перезагрузку страницы.
+       ========================================================= */
+    var AudioCue = {
+        el: null,
+        url: null,
+        name: '',
+        ready: false,
+        dbOk: false,
+
+        init: function () {
+            var self = this;
+
+            this.el = new Audio();
+            this.el.preload = 'auto';
+            this.el.hidden = true;
+            document.body.appendChild(this.el);   /* в разметке не нужен, но пусть живёт в DOM */
+            this.el.addEventListener('timeupdate', function () { self.paintProgress(); });
+            this.el.addEventListener('play', function () { self.paint(); });
+            this.el.addEventListener('pause', function () { self.paint(); });
+            this.el.addEventListener('ended', function () { self.paint(); });
+            this.el.addEventListener('loadedmetadata', function () { self.paint(); });
+
+            $('audioPick').addEventListener('click', function () { $('audioFile').click(); });
+            $('audioFile').addEventListener('change', function (e) {
+                var f = e.target.files && e.target.files[0];
+                if (f) self.load(f);
+                e.target.value = '';
+            });
+            $('audioPlay').addEventListener('click', function () { self.toggle(); });
+            $('audioStop').addEventListener('click', function () { self.stop(); });
+
+            var box = $('optAudioStart');
+            box.checked = !!settings.audioStart;
+            box.addEventListener('change', function () {
+                settings.audioStart = box.checked;
+                saveSettings();
+                if (box.checked && !self.ready) toast('Сначала выберите аудиофайл');
+            });
+
+            this.restore();
+            this.paint();
+        },
+
+        /* выбран новый файл */
+        load: function (file) {
+            if (this.url) { try { URL.revokeObjectURL(this.url); } catch (e) {} }
+            this.url = URL.createObjectURL(file);
+            this.el.src = this.url;
+            this.name = file.name || 'аудиозапись';
+            this.ready = true;
+            this.dbOk = false;
+            settings.audioName = this.name;
+            saveSettings();
+            this.saveBlob(file);
+            this.paint();
+        },
+
+        play: function () {
+            if (!this.ready) { toast('Сначала выберите аудиофайл'); return; }
+            var p = this.el.play();
+            if (p && typeof p.catch === 'function') {
+                p.catch(function () { toast('Нажмите «▶ Проверить», чтобы включить звук'); });
+            }
+        },
+
+        toggle: function () {
+            if (!this.ready) return;
+            if (this.el.paused) this.play(); else this.el.pause();
+            this.paint();
+        },
+
+        stop: function () {
+            if (!this.ready) return;
+            this.el.pause();
+            try { this.el.currentTime = 0; } catch (e) {}
+            this.paint();
+        },
+
+        paint: function () {
+            var playBtn = $('audioPlay'), stopBtn = $('audioStop');
+            if (!playBtn) return;
+            var playing = this.ready && !this.el.paused && !this.el.ended;
+            playBtn.textContent = playing ? '⏸ Пауза' : '▶ Проверить';
+            playBtn.disabled = !this.ready;
+            stopBtn.disabled = !this.ready;
+
+            var hint = $('audioHint');
+            if (hint) {
+                if (!this.ready) {
+                    hint.textContent = settings.audioName
+                        ? 'Выберите заново: ' + settings.audioName
+                        : 'Не выбран · файл остаётся на компьютере';
+                } else {
+                    var d = this.el.duration;
+                    var len = (isFinite(d) && d > 0) ? ' · ' + fmtMedia(d) : '';
+                    hint.textContent = this.name + len + (this.dbOk ? '' : ' · после перезагрузки выберите заново');
+                }
+            }
+            this.paintProgress();
+        },
+
+        paintProgress: function () {
+            var bar = $('audioBar'), fill = $('audioBarFill');
+            if (!bar || !fill) return;
+            if (!this.ready) { bar.hidden = true; fill.style.width = '0%'; return; }
+            var d = this.el.duration;
+            var playing = !this.el.paused && !this.el.ended;
+            var pos = (isFinite(d) && d > 0) ? (this.el.currentTime / d * 100) : 0;
+            fill.style.width = pos.toFixed(1) + '%';
+            bar.hidden = !(playing || this.el.currentTime > 0);
+        },
+
+        /* --- IndexedDB: переживаем перезагрузку --- */
+        openDb: function (cb, onFail) {
+            if (!window.indexedDB) { if (onFail) onFail(); return; }
+            var req;
+            try { req = indexedDB.open('vsohCue', 1); } catch (e) { if (onFail) onFail(); return; }
+            var failed = false;
+            req.onupgradeneeded = function () {
+                try { req.result.createObjectStore('files'); } catch (e) {}
+            };
+            req.onsuccess = function () { cb(req.result); };
+            req.onerror = function () { if (!failed) { failed = true; if (onFail) onFail(); } };
+            req.onblocked = function () { if (!failed) { failed = true; if (onFail) onFail(); } };
+        },
+
+        saveBlob: function (file) {
+            var self = this;
+            this.openDb(function (db) {
+                try {
+                    var tx = db.transaction('files', 'readwrite');
+                    tx.objectStore('files').put(file, 'cue');
+                    tx.oncomplete = function () { self.dbOk = true; db.close(); self.paint(); };
+                    tx.onerror = function () { db.close(); };
+                } catch (e) { db.close(); }
+            });
+        },
+
+        restore: function () {
+            var self = this;
+            this.openDb(function (db) {
+                var tx, get;
+                try { tx = db.transaction('files', 'readonly'); } catch (e) { db.close(); return; }
+                get = tx.objectStore('files').get('cue');
+                get.onsuccess = function () {
+                    var blob = get.result;
+                    db.close();
+                    if (!blob) return;
+                    self.dbOk = true;
+                    self.url = URL.createObjectURL(blob);
+                    self.el.src = self.url;
+                    self.name = blob.name || 'аудиозапись';
+                    self.ready = true;
+                    self.paint();
+                };
+                get.onerror = function () { db.close(); };
+            });
+        }
+    };
+
+    function fmtMedia(sec) {
+        sec = Math.round(sec);
+        var h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+        var pad = function (n) { return (n < 10 ? '0' : '') + n; };
+        return h > 0 ? (h + ':' + pad(m) + ':' + pad(s)) : (m + ':' + pad(s));
+    }
+
+    /* =========================================================
        7. Вспомогательные UI-эффекты
        ========================================================= */
     var confettiTimer = null;
@@ -1601,6 +1810,7 @@ body:not(.panel-collapsed) .chevron { transform: rotate(180deg); }
             pausedRemaining: 0
         },
         cues: { fired: {}, endedShown: false, wasActive: false, lastTickSec: -1, prevRem: null },
+        lastPhase: null,
         autoStart: false
     };
 
@@ -1684,6 +1894,7 @@ body:not(.panel-collapsed) .chevron { transform: rotate(180deg); }
         resetCues();
         confetti(false);
         saveTimerState();
+        if (settings.audioStart) AudioCue.play();   /* аудирование стартует вместе с таймером */
         render();
     }
 
@@ -1956,6 +2167,13 @@ body:not(.panel-collapsed) .chevron { transform: rotate(180deg); }
 
         var info = (State.mode === 'schedule') ? scheduleInfo(now) : timerInfo(now);
 
+        /* старт олимпиады по расписанию: ловим переход «до начала» -> «идёт» */
+        var wasBefore = (State.lastPhase === 'before');
+        State.lastPhase = info.phase;
+        if (wasBefore && info.phase === 'live' && State.mode === 'schedule' && settings.audioStart) {
+            AudioCue.play();
+        }
+
         if (State.mode === 'schedule') renderScheduleCards(info);
         else renderTimerCards(info);
 
@@ -2201,6 +2419,7 @@ body:not(.panel-collapsed) .chevron { transform: rotate(180deg); }
         $('optWake').checked = !!settings.wake;
 
         updateScheduleHint();
+        AudioCue.init();
         render();
 
         /* --- заголовок и место --- */
