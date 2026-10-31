@@ -21,7 +21,6 @@
     --accent2: #4361ee;
     --warn: #ffb142;
     --danger: #ff6b6b;
-    --ok: #37d67a;
     --text: rgba(255, 255, 255, .95);
     --muted: rgba(255, 255, 255, .55);
     --bg1: #1a1a2e;
@@ -103,7 +102,6 @@ body {
     font-size: 2.2vmin;
     margin-top: 2px;
 }
-.sep { opacity: .5; }
 .date::before, .msk::before {
     content: "•";
     display: inline-block;
@@ -1602,7 +1600,7 @@ body:not(.panel-collapsed) .chevron { transform: rotate(180deg); }
             endMono: 0,
             pausedRemaining: 0
         },
-        cues: { fired: {}, endedShown: false, wasActive: false, lastTickSec: -1 },
+        cues: { fired: {}, endedShown: false, wasActive: false, lastTickSec: -1, prevRem: null },
         autoStart: false
     };
 
@@ -1619,7 +1617,7 @@ body:not(.panel-collapsed) .chevron { transform: rotate(180deg); }
     }
 
     function resetCues() {
-        State.cues = { fired: {}, endedShown: false, wasActive: false, lastTickSec: -1 };
+        State.cues = { fired: {}, endedShown: false, wasActive: false, lastTickSec: -1, prevRem: null };
     }
 
     /* =========================================================
@@ -1908,13 +1906,18 @@ body:not(.panel-collapsed) .chevron { transform: rotate(180deg); }
         if (info.active && rem > 0) {
             State.cues.wasActive = true;
             var marks = [600000, 300000, 60000];
+            var prev = State.cues.prevRem;
             for (var i = 0; i < marks.length; i++) {
                 var m = marks[i];
-                if (rem <= m && rem > m - 2000 && !State.cues.fired[m]) {
+                /* срабатываем при переходе через порог, а не только в узком окне:
+                   в фоновой вкладке тики браузера редкие, и сигнал иначе терялся */
+                if (!State.cues.fired[m] && rem <= m && (prev === null || prev === undefined || prev > m)) {
                     State.cues.fired[m] = true;
                     if (settings.warn) Sound.warn(m);
                 }
             }
+            State.cues.prevRem = rem;
+
             if (rem <= 10000) {
                 var sec = Math.ceil(rem / 1000);
                 if (sec !== State.cues.lastTickSec) {
@@ -1935,10 +1938,18 @@ body:not(.panel-collapsed) .chevron { transform: rotate(180deg); }
     function render() {
         var now = Time.now();
 
-        /* таймер дошёл до нуля — переводим в состояние «время вышло» */
-        if (State.mode === 'timer' && State.timer.status === 'running' && timerRemaining() <= 0) {
+        /* таймер дошёл до нуля — переводим в состояние «время вышло».
+           Переход делаем в любом режиме: иначе таймер, запущенный и покинутый
+           ради расписания, замирал в «running» и не подавал сигнала вообще. */
+        if (State.timer.status === 'running' && timerRemaining() <= 0) {
             State.timer.status = 'ended';
             saveTimerState();
+            if (State.mode !== 'timer') {
+                /* карточки таймера на экране нет — предупреждаем звуком и подписью */
+                Sound.final();
+                confetti(true);
+                toast('Таймер завершился');
+            }
         }
 
         renderClock(now);
@@ -2425,8 +2436,7 @@ body:not(.panel-collapsed) .chevron { transform: rotate(180deg); }
                 if (settings.wake) requestWakeLock();
             }
         });
-        window.addEventListener('online', function () { Sync.run(true); });
-        window.addEventListener('offline', function () { Sync.setStatus('offline'); });
+        /* online/offline уже слушает Sync.start() — второй раз не вешаем */
 
         /* пересчитать надпись «ВРЕМЯ ВЫШЛО» при изменении окна */
         window.addEventListener('resize', function () {
