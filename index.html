@@ -239,6 +239,8 @@ body.ended .progress-fill { background: var(--danger); }
     display: flex;
     align-items: center;
     gap: 10px;
+    width: 100%;
+    max-width: 780px;
     width: min(100%, 780px);
     margin: 0 auto;
     padding: 6px 12px;
@@ -255,20 +257,43 @@ body.ended .progress-fill { background: var(--danger); }
 }
 .audio-strip .chip { min-width: 34px; padding: 6px 8px; }
 .strip-seek {
+    position: relative;
     flex: 1 1 auto;
-    height: 6px;
     min-width: 60px;
+    height: 24px;
+    cursor: pointer;
+    touch-action: none;
+    outline: none;
+}
+.strip-seek::before {
+    content: "";
+    position: absolute;
+    left: 0; right: 0; top: 9px;
+    height: 6px;
     border-radius: 3px;
     background: rgba(128, 140, 160, .25);
-    overflow: hidden;
 }
 .strip-seek i {
-    display: block;
-    height: 100%;
+    position: absolute;
+    left: 0; top: 9px;
     width: 0;
+    height: 6px;
+    border-radius: 3px;
     background: var(--accent);
     transition: width .18s linear;
 }
+.strip-seek b {
+    position: absolute;
+    top: 6px;
+    left: 0;
+    width: 12px; height: 12px;
+    margin-left: -6px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 0 3px rgba(76, 201, 240, .16);
+    transition: left .18s linear, box-shadow .15s ease;
+}
+.strip-seek:hover b, .strip-seek:focus-visible b { box-shadow: 0 0 0 5px rgba(76, 201, 240, .26); }
 .strip-left {
     font-size: .82rem;
     color: var(--muted);
@@ -401,6 +426,8 @@ input[type="time"]::-webkit-calendar-picker-indicator { display: none; }
 }
 .tpick[hidden] { display: none; }
 .tpick-card {
+    width: 430px;
+    max-width: 92vw;
     width: min(92vw, 430px);
     background: var(--pop);
     border: 1px solid var(--line);
@@ -819,6 +846,7 @@ body:not(.panel-collapsed) .chevron { transform: rotate(180deg); }
     background: rgba(10, 14, 26, .72);
     border: 3px dashed rgba(76, 201, 240, .75);
     color: var(--text);
+    font-size: 1.2rem;
     font-size: clamp(1rem, 2.4vmin, 1.5rem);
     font-weight: 600;
     text-align: center;
@@ -1009,7 +1037,10 @@ body:not(.panel-collapsed) .chevron { transform: rotate(180deg); }
     <div class="audio-strip" id="audioStrip" hidden>
         <button type="button" class="chip" id="stripPlay" title="Пауза / продолжить" aria-label="Пауза или продолжить">⏸</button>
         <button type="button" class="chip" id="stripStop" title="Стоп" aria-label="Стоп">⏹</button>
-        <div class="strip-seek"><i id="stripFill"></i></div>
+        <div class="strip-seek" id="stripSeek" role="slider" tabindex="0"
+             aria-label="Перемотка записи" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <i id="stripFill"></i><b id="stripKnob"></b>
+        </div>
         <span class="strip-left" id="stripLeft">осталось 0:00</span>
         <span class="strip-name" id="stripName"></span>
     </div>
@@ -2025,38 +2056,44 @@ body:not(.panel-collapsed) .chevron { transform: rotate(180deg); }
             if (stripPlay) stripPlay.addEventListener('click', function () { self.toggle(); });
             if (stripStop) stripStop.addEventListener('click', function () { self.stop(); });
 
-            /* перемотка: клик по полосе и протаскивание ползунка */
-            var seek = $('audioSeek');
-            var dragging = false;
-            var ratioOf = function (e) {
-                var r = seek.getBoundingClientRect();
-                return r.width > 0 ? clamp((e.clientX - r.left) / r.width, 0, 1) : 0;
-            };
-            seek.addEventListener('pointerdown', function (e) {
-                if (!self.ready) return;
-                dragging = true;
-                try { seek.setPointerCapture(e.pointerId); } catch (err) {}
-                self.seekTo(ratioOf(e));
-            });
-            seek.addEventListener('pointermove', function (e) {
-                if (dragging) self.seekTo(ratioOf(e));
-            });
-            var endDrag = function (e) {
-                if (!dragging) return;
-                dragging = false;
-                try { seek.releasePointerCapture(e.pointerId); } catch (err) {}
-            };
-            seek.addEventListener('pointerup', endDrag);
-            seek.addEventListener('pointercancel', endDrag);
-            seek.addEventListener('keydown', function (e) {
-                if (e.key === 'ArrowLeft') { e.preventDefault(); self.skip(-5); }
-                else if (e.key === 'ArrowRight') { e.preventDefault(); self.skip(5); }
-                else if (e.key === ' ') {
+            /* перемотка: одинаково работает и в плеере настроек, и в полосе под часами */
+            function attachSeek(el) {
+                if (!el) return;
+                var dragging = false;
+                var ratioOf = function (e) {
+                    var r = el.getBoundingClientRect();
+                    return r.width > 0 ? clamp((e.clientX - r.left) / r.width, 0, 1) : 0;
+                };
+                el.addEventListener('pointerdown', function (e) {
+                    if (!self.ready) return;
                     e.preventDefault();
-                    e.stopPropagation();       /* пробел не должен запускать таймер */
-                    self.toggle();
-                }
-            });
+                    dragging = true;
+                    try { el.setPointerCapture(e.pointerId); } catch (err) {}
+                    self.seekTo(ratioOf(e));
+                });
+                el.addEventListener('pointermove', function (e) {
+                    if (dragging) self.seekTo(ratioOf(e));
+                });
+                var endDrag = function (e) {
+                    if (!dragging) return;
+                    dragging = false;
+                    try { el.releasePointerCapture(e.pointerId); } catch (err) {}
+                };
+                el.addEventListener('pointerup', endDrag);
+                el.addEventListener('pointercancel', endDrag);
+                el.addEventListener('keydown', function (e) {
+                    if (e.key === 'ArrowLeft') { e.preventDefault(); self.skip(-5); }
+                    else if (e.key === 'ArrowRight') { e.preventDefault(); self.skip(5); }
+                    else if (e.key === ' ') {
+                        e.preventDefault();
+                        e.stopPropagation();   /* пробел не должен запускать таймер */
+                        self.toggle();
+                    }
+                });
+            }
+
+            attachSeek($('audioSeek'));
+            attachSeek($('stripSeek'));
 
             var box = $('optAudioStart');
             box.checked = !!settings.audioStart;
@@ -2170,9 +2207,14 @@ body:not(.panel-collapsed) .chevron { transform: rotate(180deg); }
 
             var d = this.el.duration;
             var ok = isFinite(d) && d > 0;
+            var pct = ok ? ((clamp(cur / d, 0, 1)) * 100).toFixed(2) + '%' : '0%';
             $('stripPlay').textContent = playing ? '⏸' : '▶';
-            $('stripFill').style.width = ok ? ((clamp(cur / d, 0, 1)) * 100).toFixed(1) + '%' : '0%';
+            $('stripFill').style.width = pct;
+            if ($('stripKnob')) $('stripKnob').style.left = pct;
             $('stripLeft').textContent = ok ? 'осталось ' + fmtMedia(Math.max(0, d - cur)) : 'готово к запуску';
+            if ($('stripSeek')) {
+                $('stripSeek').setAttribute('aria-valuenow', String(ok ? Math.round(cur / d * 100) : 0));
+            }
             var nm = $('stripName');
             if (nm && nm.textContent !== this.name) nm.textContent = this.name;
         },
