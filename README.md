@@ -14,8 +14,6 @@
 [**Скачать файл**](https://github.com/RoBiN19666/olymp-clock/raw/main/index.html) ·
 [**Скачать APK**](https://github.com/RoBiN19666/olymp-clock/releases/latest)
 
-![Расписание олимпиады](screenshots/1_schedule_1080.png)
-
 ---
 
 ## Зачем
