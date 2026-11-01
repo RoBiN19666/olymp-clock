@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/logo-card.png" alt="OlympClock" width="470">
+</p>
+
 # Часы и таймер для олимпиад
 
 Один HTML-файл: часы, расписание и обратный отсчёт. Работает **полностью без интернета**,
@@ -167,6 +171,7 @@ msedge.exe --kiosk --app="file:///D:/Олимпиада/index.html?mode=schedule
 ```
 index.html          ← сами часы, всё в одном файле
 apk/                ← Android-обёртка (WebView + assets/clock.html)
+assets/             ← логотип и иконки
 screenshots/        ← картинки для этого README
 ```
 
