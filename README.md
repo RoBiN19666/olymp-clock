@@ -1,5 +1,8 @@
 <p align="center">
-  <img src="assets/logo-card.png" alt="OlympClock" width="470">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark.png">
+    <img src="assets/logo-light.png" alt="OlympClock" width="460">
+  </picture>
 </p>
 
 # Часы и таймер для олимпиад
@@ -10,8 +13,6 @@
 [**Открыть в браузере**](https://robin19666.github.io/olymp-clock/) ·
 [**Скачать файл**](https://github.com/RoBiN19666/olymp-clock/raw/main/index.html) ·
 [**Скачать APK**](https://github.com/RoBiN19666/olymp-clock/releases/latest)
-
-![Расписание олимпиады](screenshots/1_schedule_1080.png)
 
 ---
 

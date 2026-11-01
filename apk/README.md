@@ -1,5 +1,8 @@
 <p align="center">
-  <img src="../assets/logo-card.png" alt="OlympClock" width="380">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="../assets/logo-dark.png">
+    <img src="../assets/logo-light.png" alt="OlympClock" width="460">
+  </picture>
 </p>
 
 # OlympClock — Android-обёртка (APK)
